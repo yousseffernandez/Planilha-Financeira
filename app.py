@@ -86,7 +86,7 @@ caixinha_viagem = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor'].su
 total_saidas = gastos_fixos + gastos_extras + caixinha_viagem
 saldo_livre = entradas - total_saidas
 
-# --- CARDS DE RESUMO REESTILIZADOS ---
+# --- CARDS DE RESUMO REESTILIZADOS EM DARK MODE ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 with col1:
@@ -137,28 +137,28 @@ else:
 
 st.markdown("---")
 
-# --- FORMULÁRIO COM LARGURA DE COLUNAS AJUSTADA ---
+# --- FORMULÁRIO COMPACTO 2X2 REESTRUTURADO ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
 opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM"]
 
 with st.form(key='finance_form', clear_on_submit=True):
-    # Alteração nas proporções das colunas: Valor ganhou mais espaço
-    col_desc_select, col_desc_input, col_val, col_tipo = st.columns([1.2, 1.2, 0.8, 1.2])
-    
-    with col_desc_select:
-        item_selecionado = st.selectbox("Escolha da lista:", opcoes_selectbox)
+    # Linha 1 do Formulário: Caixas de Descrição Espaçosas
+    col_l1_a, col_l1_b = st.columns(2)
+    with col_l1_a:
+        item_selecionado = st.selectbox("Escolha um gasto da lista:", opcoes_selectbox)
+    with col_l1_b:
+        descricao_manual = st.text_input("Ou digite um item novo:", placeholder="Ex: MERCADO, POSTO...")
         
-    with col_desc_input:
-        descricao_manual = st.text_input("Ou digite um gasto novo:", placeholder="Ex: MERCADO, POSTO...")
+    # Linha 2 do Formulário: Valor largo e Categoria
+    col_l2_a, col_l2_b = st.columns(2)
+    with col_l2_a:
+        valor_texto = st.text_input("Valor do Lançamento (R$):", placeholder="0,00")
+    with col_l2_b:
+        tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem"])
         
-    with col_val:
-        valor_texto = st.text_input("Valor (R$):", placeholder="0,00")
-        
-    with col_tipo:
-        tipo = st.selectbox("Tipo / Categoria", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem"])
-        
-    submit_button = st.form_submit_button(label="🚀 Adicionar Lançamento", use_container_width=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    submit_button = st.form_submit_button(label="💾 Adicionar Lançamento", use_container_width=True)
 
 if submit_button:
     try:
