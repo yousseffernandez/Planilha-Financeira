@@ -8,13 +8,12 @@ st.set_page_config(
     page_title="FinançasPro Mensal",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # Arquivo de armazenamento principal
 DATA_FILE = "dados_financeiros.csv"
 
-# Função para carregar os dados
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -29,20 +28,16 @@ def load_data():
             pass
     return pd.DataFrame(columns=["Descrição", "Valor", "Tipo", "Mês/Ano", "Data Registro"])
 
-# Função para salvar os dados
 def save_data(df):
     df.to_csv(DATA_FILE, index=False)
 
-# Inicializar os dados na memória do Streamlit
 if 'df' not in st.session_state:
     st.session_state.df = load_data()
 
-# --- INTELIGÊNCIA: DESCOBRIR ITENS DO MENU AUTOMATICAMENTE ---
-itens_menu_dinamico = []
+# --- COLETAR SUGESTÕES ANTIGAS PARA AUTOCOMPLETAR ---
+sugestoes = []
 if not st.session_state.df.empty:
-    descricoes_salvas = st.session_state.df["Descrição"].dropna().unique().tolist()
-    descricoes_filtradas = [d for d in descricoes_salvas if d not in ["ENTRADA", "CAIXINHA VIAGEM"]]
-    itens_menu_dinamico = sorted(list(set(descricoes_filtradas)))
+    sugestoes = sorted(list(set(st.session_state.df["Descrição"].dropna().astype(str).tolist())))
 
 # --- VARIÁVEIS DE DATA ---
 meses_ano = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
@@ -73,10 +68,8 @@ mes_selecionado = st.session_state.mes_ativo
 st.title(f"💰 FinançasPro — {mes_selecionado}")
 st.markdown("---")
 
-# --- FILTRAR DADOS ---
+# --- FILTRAR DADOS DO MÊS ---
 df_geral = st.session_state.df.copy()
-# Criamos uma coluna temporária para rastrear os índices reais do arquivo original
-df_geral['index_original'] = df_geral.index
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
 # --- PROCESSAMENTO DOS TOTAIS ---
@@ -101,93 +94,62 @@ with col4:
 
 st.markdown("---")
 
-# --- FORMULÁRIO ---
-st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
-
-opcoes_finais_menu = ["-- Selecione o Gasto --"] + itens_menu_dinamico + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM", "➕ OUTRO (Digitar novo gasto...)"]
+# --- FORMULÁRIO RÁPIDO E INTELIGENTE ---
+st.markdown(f"### ➕ Novo Lançamento")
 
 with st.form(key='finance_form', clear_on_submit=True):
     col_desc, col_val, col_tipo = st.columns([2, 1, 1.5])
     
     with col_desc:
-        item_selecionado = st.selectbox("Descrição (Item do Menu Suspenso)", opcoes_finais_menu)
-        descricao_manual = ""
-        if item_selecionado == "➕ OUTRO (Digitar novo gasto...)":
-            descricao_manual = st.text_input("Digite o nome desse novo gasto:")
-            
+        # st.text_input com autocomplete: digite qualquer coisa ou escolha das sugestões antigas!
+        descricao = st.text_input("Descrição (Digite novo ou escolha sugestão)", autocomplete=sugestoes, placeholder="Ex: CASA, PASSE MÃE, ALUGUEL...")
     with col_val:
         valor = st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f")
-        
     with col_tipo:
         tipo = st.selectbox("Tipo / Categoria", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem"])
         
     submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
 
 if submit_button:
-    if item_selecionado == "-- Selecione o Gasto --":
-        st.error("Por favor, selecione uma descrição válida no menu suspenso.")
+    desc_final = descricao.strip().upper()
+    if desc_final and valor > 0:
+        nova_linha = {
+            "Descrição": desc_final,
+            "Valor": valor,
+            "Tipo": tipo,
+            "Mês/Ano": mes_selecionado,
+            "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M")
+        }
+        st.session_state.df = pd.concat([load_data(), pd.DataFrame([nova_linha])], ignore_index=True)
+        save_data(st.session_state.df)
+        st.success("Adicionado!")
+        st.rerun()
     else:
-        if item_selecionado == "➕ OUTRO (Digitar novo gasto...)":
-            desc_final = descricao_manual.strip().upper()
-        elif "💰" in item_selecionado or "✈️" in item_selecionado:
-            desc_final = item_selecionado.split("(")[0].strip().replace("💰 ", "").replace("✈️ ", "")
-        else:
-            desc_final = item_selecionado
-
-        if desc_final and valor > 0:
-            nova_linha = {
-                "Descrição": desc_final,
-                "Valor": valor,
-                "Tipo": tipo,
-                "Mês/Ano": mes_selecionado,
-                "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M")
-            }
-            # Carrega dados limpos para evitar conflito com colunas temporárias
-            df_atual = load_data()
-            st.session_state.df = pd.concat([df_atual, pd.DataFrame([nova_linha])], ignore_index=True)
-            save_data(st.session_state.df)
-            st.success("Adicionado com sucesso!")
-            st.rerun()
-        else:
-            st.warning("Por favor, preencha o valor e a descrição corretamente.")
+        st.warning("Preencha a descrição e o valor corretamente.")
 
 st.markdown("---")
 
-# --- EXTRATO MENSAL INTERATIVO COM EXCLUSÃO DIRETA ---
-st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
+# --- EXTRATO MENSAL COM O BOTÃO X DO LADO ---
+st.markdown(f"### 📋 Extrato de {mes_selecionado}")
 
 if not df_mes.empty:
-    # Mostra um aviso rápido ensinando o usuário no celular
-    st.caption("💡 Para deletar uma linha: Selecione a linha clicando no início dela e pressione a lixeira no topo da tabela ou a tecla 'Delete'.")
-    
-    # Prepara os dados visuais mantendo a coluna oculta index_original
-    df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Data Registro"]].copy()
-    
-    # Exibe o editor de dados com a opção de exclusão ativada (num_rows="dynamic")
-    tabela_editada = st.data_editor(
-        df_visual,
-        hide_index=True,
-        use_container_width=True,
-        num_rows="dynamic", # Ativa o recurso de apagar linhas nativo
-        column_config={"index_original": None}, # Esconde o ID de controle
-        key="editor_extrato"
-    )
-    
-    # Verifica se alguma linha foi removida na interface do usuário
-    if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("deleted_rows"):
-        indices_deletados_tela = st.session_state.editor_extrato["deleted_rows"]
+    # Criamos um layout limpo simulando linhas de aplicativo
+    for idx, row in df_mes.iterrows():
+        # Renderiza cada linha gastando espaço dinâmico proporcional
+        c_desc, c_val, c_tipo, c_del = st.columns([2.5, 1.5, 1.5, 0.5])
         
-        # Descobre quais eram os índices reais no banco de dados original
-        indices_reais_para_deletar = []
-        for idx_tela in indices_deletados_tela:
-            id_real = df_visual.iloc[idx_tela]['index_original']
-            indices_reais_para_deletar.append(id_real)
-            
-        # Remove os registros do DataFrame principal e atualiza o arquivo
-        df_limpo = load_data()
-        df_atualizado = df_limpo.drop(indices_reais_para_deletar).reset_index(drop=True)
-        st.session_state.df = df_atualizado
-        save_data(df_atualizado)
-        st.rerun()
+        with c_desc:
+            st.markdown(f"**{row['Descrição']}**")
+        with c_val:
+            st.markdown(f"R$ {row['Valor']:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        with c_tipo:
+            st.markdown(f"<small>{row['Tipo']}</small>", unsafe_allow_html=True)
+        with c_del:
+            # Botão X direto na linha com identificação única pelo índice real do banco
+            if st.button("❌", key=f"del_{idx}"):
+                st.session_state.df = st.session_state.df.drop(idx).reset_index(drop=True)
+                save_data(st.session_state.df)
+                st.rerun()
+        st.markdown("<div style='border-bottom: 1px solid #eee; margin-bottom: 8px;'></div>", unsafe_allow_html=True)
 else:
-    st.info(f"Nenhum lançamento cadastrado para {mes_selecionado}.")
+    st.info("Nenhum lançamento cadastrado para este mês.")
