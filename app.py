@@ -8,12 +8,13 @@ st.set_page_config(
     page_title="FinançasPro Mensal",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # Arquivo de armazenamento principal
 DATA_FILE = "dados_financeiros.csv"
 
+# Função para carregar os dados
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -28,16 +29,20 @@ def load_data():
             pass
     return pd.DataFrame(columns=["Descrição", "Valor", "Tipo", "Mês/Ano", "Data Registro"])
 
+# Função para salvar os dados
 def save_data(df):
     df.to_csv(DATA_FILE, index=False)
 
+# Inicializar os dados na memória do Streamlit
 if 'df' not in st.session_state:
     st.session_state.df = load_data()
 
-# --- COLETAR SUGESTÕES ANTIGAS PARA AUTOCOMPLETAR ---
-sugestoes = []
+# --- INTELIGÊNCIA: DESCOBRIR ITENS DO MENU AUTOMATICAMENTE ---
+itens_menu_dinamico = []
 if not st.session_state.df.empty:
-    sugestoes = sorted(list(set(st.session_state.df["Descrição"].dropna().astype(str).tolist())))
+    descricoes_salvas = st.session_state.df["Descrição"].dropna().unique().tolist()
+    descricoes_filtradas = [d for d in descricoes_salvas if d not in ["ENTRADA", "CAIXINHA VIAGEM"]]
+    itens_menu_dinamico = sorted(list(set(descricoes_filtradas)))
 
 # --- VARIÁVEIS DE DATA ---
 meses_ano = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
@@ -68,8 +73,9 @@ mes_selecionado = st.session_state.mes_ativo
 st.title(f"💰 FinançasPro — {mes_selecionado}")
 st.markdown("---")
 
-# --- FILTRAR DADOS DO MÊS ---
+# --- FILTRAR DADOS ---
 df_geral = st.session_state.df.copy()
+df_geral['index_original'] = df_geral.index
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
 # --- PROCESSAMENTO DOS TOTAIS ---
@@ -94,24 +100,38 @@ with col4:
 
 st.markdown("---")
 
-# --- FORMULÁRIO RÁPIDO E INTELIGENTE ---
-st.markdown(f"### ➕ Novo Lançamento")
+# --- FORMULÁRIO CORRIGIDO ---
+st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
 with st.form(key='finance_form', clear_on_submit=True):
-    col_desc, col_val, col_tipo = st.columns([2, 1, 1.5])
+    col_modo, col_desc, col_val, col_tipo = st.columns([1, 1.5, 1, 1])
     
+    with col_modo:
+        modo_insercao = st.selectbox("Modo", ["📋 Escolher da lista", "✏️ Digitar novo"])
+        
     with col_desc:
-        # st.text_input com autocomplete: digite qualquer coisa ou escolha das sugestões antigas!
-        descricao = st.text_input("Descrição (Digite novo ou escolha sugestão)", autocomplete=sugestoes, placeholder="Ex: CASA, PASSE MÃE, ALUGUEL...")
+        if modo_insercao == "📋 Escolher da lista":
+            opcoes_lista = itens_menu_dinamico + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM"]
+            item_selecionado = st.selectbox("Selecione o Gasto", opcoes_lista if itens_menu_dinamico else ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM"])
+            desc_final = item_selecionado
+        else:
+            descricao_manual = st.text_input("Nome do novo gasto:", placeholder="Ex: CASA, ACADEMIA...")
+            desc_final = descricao_manual
+            
     with col_val:
         valor = st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f")
+        
     with col_tipo:
         tipo = st.selectbox("Tipo / Categoria", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem"])
         
     submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
 
 if submit_button:
-    desc_final = descricao.strip().upper()
+    # Formatação do nome
+    if "💰" in desc_final or "✈️" in desc_final:
+        desc_final = desc_final.split("(")[0].strip().replace("💰 ", "").replace("✈️ ", "")
+    desc_final = desc_final.strip().upper()
+
     if desc_final and valor > 0:
         nova_linha = {
             "Descrição": desc_final,
@@ -120,36 +140,43 @@ if submit_button:
             "Mês/Ano": mes_selecionado,
             "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M")
         }
-        st.session_state.df = pd.concat([load_data(), pd.DataFrame([nova_linha])], ignore_index=True)
+        df_atual = load_data()
+        st.session_state.df = pd.concat([df_atual, pd.DataFrame([nova_linha])], ignore_index=True)
         save_data(st.session_state.df)
-        st.success("Adicionado!")
+        st.success("Adicionado com sucesso!")
         st.rerun()
     else:
-        st.warning("Preencha a descrição e o valor corretamente.")
+        st.warning("Por favor, preencha o valor e a descrição corretamente.")
 
 st.markdown("---")
 
-# --- EXTRATO MENSAL COM O BOTÃO X DO LADO ---
-st.markdown(f"### 📋 Extrato de {mes_selecionado}")
+# --- EXTRATO MENSAL INTERATIVO NATIVO REATIVADO ---
+st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
 
 if not df_mes.empty:
-    # Criamos um layout limpo simulando linhas de aplicativo
-    for idx, row in df_mes.iterrows():
-        # Renderiza cada linha gastando espaço dinâmico proporcional
-        c_desc, c_val, c_tipo, c_del = st.columns([2.5, 1.5, 1.5, 0.5])
-        
-        with c_desc:
-            st.markdown(f"**{row['Descrição']}**")
-        with c_val:
-            st.markdown(f"R$ {row['Valor']:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-        with c_tipo:
-            st.markdown(f"<small>{row['Tipo']}</small>", unsafe_allow_html=True)
-        with c_del:
-            # Botão X direto na linha com identificação única pelo índice real do banco
-            if st.button("❌", key=f"del_{idx}"):
-                st.session_state.df = st.session_state.df.drop(idx).reset_index(drop=True)
-                save_data(st.session_state.df)
-                st.rerun()
-        st.markdown("<div style='border-bottom: 1px solid #eee; margin-bottom: 8px;'></div>", unsafe_allow_html=True)
+    st.caption("💡 Para excluir: Clique no quadradinho no início da linha desejada e pressione o botão de lixeira no topo da tabela.")
+    
+    df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Data Registro"]].copy()
+    
+    # Exibe a tabela nativa do editor com remoção direta ativada
+    tabela_editada = st.data_editor(
+        df_visual,
+        hide_index=True,
+        use_container_width=True,
+        num_rows="dynamic",
+        column_config={"index_original": None},
+        key="editor_extrato"
+    )
+    
+    # Captura a remoção
+    if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("deleted_rows"):
+        indices_deletados_tela = st.session_state.editor_extrato["deleted_rows"]
+        indices_reais_para_deletar = [df_visual.iloc[idx_tela]['index_original'] for idx_tela in indices_deletados_tela]
+            
+        df_limpo = load_data()
+        df_atualizado = df_limpo.drop(indices_reais_para_deletar).reset_index(drop=True)
+        st.session_state.df = df_atualizado
+        save_data(df_atualizado)
+        st.rerun()
 else:
-    st.info("Nenhum lançamento cadastrado para este mês.")
+    st.info(f"Nenhum lançamento cadastrado para {mes_selecionado}.")
