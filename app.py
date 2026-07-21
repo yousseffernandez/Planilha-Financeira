@@ -41,7 +41,6 @@ if 'df' not in st.session_state:
 itens_ja_usados = []
 if not st.session_state.df.empty:
     descricoes_salvas = st.session_state.df["Descrição"].dropna().unique().tolist()
-    # Filtra e deixa em ordem alfabética para o menu suspenso
     itens_ja_usados = sorted([d.strip().upper() for d in descricoes_salvas if d.strip()])
 
 # --- VARIÁVEIS DE DATA ---
@@ -143,24 +142,22 @@ else:
 
 st.markdown("---")
 
-# --- FORMULÁRIO COM VALIDAÇÃO DINÂMICA (ESTILO EXCEL) ---
+# --- FORMULÁRIO COM CAMPOS FIXOS (FOCADO EM AGILIDADE MOBILE) ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
-# Cria as opções combinando o seu histórico + a opção de criar um item inédito
-opcoes_selectbox = itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM", "➕ NOVO ITEM (Digitar novo...)"]
+# Opções do menu com os itens que já existem
+opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM"]
 
 with st.form(key='finance_form', clear_on_submit=True):
-    col_desc, col_val, col_tipo = st.columns([2, 1, 1.5])
+    col_desc_select, col_desc_input, col_val, col_tipo = st.columns([1.5, 1.5, 1, 1])
     
-    with col_desc:
-        # Agora sim é um menu suspenso de clique direto!
-        item_selecionado = st.selectbox("Descrição (Item do Menu Suspenso):", opcoes_selectbox)
+    with col_desc_select:
+        item_selecionado = st.selectbox("Escolha da lista:", opcoes_selectbox)
         
-        # Campo de texto extra escondido que só brota na tela se você escolher "Digitar novo..."
-        descricao_manual = ""
-        if item_selecionado == "➕ NOVO ITEM (Digitar novo...)":
-            descricao_manual = st.text_input("Nome do novo gasto inédito:")
-            
+    with col_desc_input:
+        # Fica SEMPRE visível! Se o item for novo, é só digitar aqui.
+        descricao_manual = st.text_input("Ou digite um gasto novo:", placeholder="Ex: SERCOM, MERCADO...")
+        
     with col_val:
         valor = st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f")
         
@@ -170,13 +167,16 @@ with st.form(key='finance_form', clear_on_submit=True):
     submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
 
 if submit_button:
-    # Trata a descrição final baseada no clique
-    if item_selecionado == "➕ NOVO ITEM (Digitar novo...)":
+    # Lógica inteligente: se digitou na caixinha, prioriza o texto manual. Se não, pega a lista.
+    if descricao_manual.strip():
         desc_final = descricao_manual.strip().upper()
-    elif "💰" in item_selecionado or "✈️" in item_selecionado:
-        desc_final = item_selecionado.split("(")[0].strip().replace("💰 ", "").replace("✈️ ", "")
+    elif item_selecionado != "-- Selecione da lista --":
+        if "💰" in item_selecionado or "✈️" in item_selecionado:
+            desc_final = item_selecionado.split("(")[0].strip().replace("💰 ", "").replace("✈️ ", "")
+        else:
+            desc_final = item_selecionado
     else:
-        desc_final = item_selecionado
+        desc_final = None
 
     if desc_final and valor > 0:
         nova_linha = {
@@ -192,7 +192,7 @@ if submit_button:
         st.success("Adicionado com sucesso!")
         st.rerun()
     else:
-        st.warning("Por favor, preencha o valor e a descrição corretamente.")
+        st.warning("Por favor, informe uma descrição (selecionando ou digitando) e um valor maior que zero.")
 
 st.markdown("---")
 
