@@ -37,7 +37,7 @@ def save_data(df):
 if 'df' not in st.session_state:
     st.session_state.df = load_data()
 
-# --- INTELIGÊNCIA: DESCOBRIR HISTÓRICO DE GASTOS ---
+# --- INTELIGÊNCIA: DESCOBRIR HISTÓRICO DE GASTOS PARA LEMBRETE ---
 itens_ja_usados = []
 if not st.session_state.df.empty:
     descricoes_salvas = st.session_state.df["Descrição"].dropna().unique().tolist()
@@ -86,17 +86,19 @@ caixinha_viagem = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor'].su
 total_saidas = gastos_fixos + gastos_extras + caixinha_viagem
 saldo_livre = entradas - total_saidas
 
-# --- CARDS DE RESUMO ---
+# --- CARDS DE RESUMO (COM ESTILIZAÇÃO E CORES DINÂMICAS) ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 with col1:
+    # Card Verde para Entradas
     st.markdown(
-        f"""<div style="border: 1px solid #d1fae5; border-left: 5px solid #10b981; background-color: #f0fdf4; padding: 15px; border-radius: 12px; margin-bottom: 10px;">
+        f"""<div style="border: 1px solid #d1fae5; border-left: 5px solid #10b981; background-color: #f0fdf4; padding: 15px; rounded-corner: 10px; border-radius: 12px; margin-bottom: 10px;">
             <span style="color: #065f46; font-size: 14px; font-weight: 600;">QUANTO ENTROU</span><br>
             <span style="color: #10b981; font-size: 24px; font-weight: 700;">R$ {entradas:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 with col2:
+    # Card Vermelho para Saídas
     st.markdown(
         f"""<div style="border: 1px solid #fee2e2; border-left: 5px solid #ef4444; background-color: #fef2f2; padding: 15px; border-radius: 12px; margin-bottom: 10px;">
             <span style="color: #991b1b; font-size: 14px; font-weight: 600;">QUANTO SAIU</span><br>
@@ -104,10 +106,17 @@ with col2:
         </div>""", unsafe_allow_html=True
     )
 with col3:
+    # Card Inteligente: MUDAR DE COR SE FICAR NEGATIVO
     if saldo_livre >= 0:
-        cor_borda, cor_fundo, cor_texto, txt_label = "#10b981", "#f0fdf4", "#10b981", "#065f46"
+        cor_borda = "#10b981"
+        cor_fundo = "#f0fdf4"
+        cor_texto = "#10b981"
+        txt_label = "#065f46"
     else:
-        cor_borda, cor_fundo, cor_texto, txt_label = "#ef4444", "#fef2f2", "#ef4444", "#991b1b"
+        cor_borda = "#ef4444"
+        cor_fundo = "#fef2f2"
+        cor_texto = "#ef4444"
+        txt_label = "#991b1b"
         
     st.markdown(
         f"""<div style="border: 1px solid {cor_fundo}; border-left: 5px solid {cor_borda}; background-color: {cor_fundo}; padding: 15px; border-radius: 12px; margin-bottom: 10px;">
@@ -116,38 +125,13 @@ with col3:
         </div>""", unsafe_allow_html=True
     )
 with col4:
+    # Card Laranja Destacado para a Caixinha Viagem
     st.markdown(
         f"""<div style="border: 1px solid #fef3c7; border-left: 5px solid #f59e0b; background-color: #fffbeb; padding: 15px; border-radius: 12px; margin-bottom: 10px;">
             <span style="color: #92400e; font-size: 14px; font-weight: 600;">✈️ CAIXINHA VIAGEM</span><br>
             <span style="color: #f59e0b; font-size: 24px; font-weight: 700;">R$ {caixinha_viagem:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
-
-# --- NOVA SEÇÃO: DIAGNÓSTICO E TERMÔMETRO DO MÊS ---
-if entradas > 0:
-    porcentagem_gasta = (total_saidas / entradas) * 100
-    
-    # Define o status do orçamento baseado nos limites ideais de gestão (60% limite)
-    if porcentagem_gasta <= 60:
-        status_texto = "🟢 SITUAÇÃO CONTROLADA: Excelente! Você está gastando dentro da meta ideal do time (até 60%)."
-        cor_progresso = "normal"
-    elif porcentagem_gasta <= 100:
-        status_texto = "🟡 ATENÇÃO: Seus gastos ultrapassaram 60% da renda. Evite novos custos extras para preservar sua margem."
-        cor_progresso = "normal"
-    else:
-        status_texto = "🔴 INVERSÃO PATRIMONIAL: Alerta! Você gastou mais do que arrecadou este mês. Cuidado com o orçamento!"
-        cor_progresso = "inverse"
-        
-    st.markdown(f"### 📊 Como estou no mês?")
-    st.markdown(f"**Status:** {status_texto}")
-    
-    # Exibe a barra visual de progresso (limita em 1.0 para não quebrar a tela se estourar 100%)
-    progresso_barra = min(porcentagem_gasta / 100, 1.0)
-    st.progress(progresso_barra)
-    st.caption(f"Você já comprometeu **{porcentagem_gasta:.1f}%** das suas entradas totais. Restam **{max(0.0, 100.0 - porcentagem_gasta):.1f}%** livres.")
-else:
-    st.markdown(f"### 📊 Como estou no mês?")
-    st.caption("Insira uma Entrada (Salário ou Ganho) para ativar o termômetro de saúde do mês.")
 
 st.markdown("---")
 
@@ -192,7 +176,7 @@ if submit_button:
 
 st.markdown("---")
 
-# --- EXTRATO MENSAL ---
+# --- EXTRATO MENSAL COM FORMATAÇÃO CONDICIONAL DE CORES ---
 st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
 
 if not df_mes.empty:
@@ -200,14 +184,18 @@ if not df_mes.empty:
     
     df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Data Registro"]].copy()
     
+    # Função interna para aplicar as cores nas linhas da tabela baseado no Tipo
     def colorir_linhas(row):
         styles = [''] * len(row)
         if row['Tipo'] == '💰 Entrada':
+            # Fundo verde claro para as entradas
             styles = ['background-color: #e6fcf5; color: #0ca678; font-weight: bold;'] * len(row)
         elif row['Tipo'] == '✈️ Caixinha Viagem':
+            # Fundo amarelo claro para a caixinha
             styles = ['background-color: #fff9db; color: #f59e0b; font-weight: bold;'] * len(row)
         return styles
 
+    # Exibe o editor aplicando o mapa de estilos visuais
     tabela_editada = st.data_editor(
         df_visual.style.apply(colorir_linhas, axis=1),
         hide_index=True,
