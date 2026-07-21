@@ -23,7 +23,7 @@ def load_data():
                 df["Mês/Ano"] = datetime.now().strftime("%B / %Y").capitalize()
             if "Data Registro" not in df.columns:
                 df["Data Registro"] = datetime.now().strftime("%d/%m/%Y %H:%M")
-            df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce')
+            df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0.0)
             return df
         except:
             pass
@@ -129,23 +129,19 @@ if entradas > 0:
     if porcentagem_gasta <= 60:
         status_texto = "🟢 SITUAÇÃO CONTROLADA: Excelente! Gastos dentro da meta ideal (até 60%)."
     elif porcentagem_gasta <= 100:
-        status_texto = "🟡 ATENÇÃO: Gastos ultrapassaram 60% da renda. Fique atento!"
+        status_texto = "🟡 ATENÇÃO: Seus gastos ultrapassaram a recomendação de 60%."
     else:
-        status_texto = "🔴 INVERSÃO PATRIMONIAL: Alerta! Você gastou mais do que arrecadou."
+        status_texto = "🔴 INVERSÃO PATRIMONIAL: Você gastou mais do que arrecadou este mês."
     st.markdown(f"### 📊 Como estou no mês?")
     st.markdown(f"**Status:** {status_texto}")
     st.progress(min(porcentagem_gasta / 100, 1.0))
     st.caption(f"Comprometido: **{porcentagem_gasta:.1f}%** | Livre: **{max(0.0, 100.0 - porcentagem_gasta):.1f}%**")
-else:
-    st.markdown(f"### 📊 Como estou no mês?")
-    st.caption("Insira uma Entrada para ativar o termômetro de saúde do mês.")
 
 st.markdown("---")
 
-# --- FORMULÁRIO COM CAMPOS FIXOS (FOCADO EM AGILIDADE MOBILE) ---
+# --- FORMULÁRIO OTIMIZADO ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
-# Opções do menu com os itens que já existem
 opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM"]
 
 with st.form(key='finance_form', clear_on_submit=True):
@@ -155,11 +151,11 @@ with st.form(key='finance_form', clear_on_submit=True):
         item_selecionado = st.selectbox("Escolha da lista:", opcoes_selectbox)
         
     with col_desc_input:
-        # Fica SEMPRE visível! Se o item for novo, é só digitar aqui.
         descricao_manual = st.text_input("Ou digite um gasto novo:", placeholder="Ex: SERCOM, MERCADO...")
         
     with col_val:
-        valor = st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f")
+        # Mudado para text_input para aceitar vírgula perfeitamente e vir limpo por padrão!
+        valor_texto = st.text_input("Valor (R$):", placeholder="0,00")
         
     with col_tipo:
         tipo = st.selectbox("Tipo / Categoria", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem"])
@@ -167,7 +163,13 @@ with st.form(key='finance_form', clear_on_submit=True):
     submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
 
 if submit_button:
-    # Lógica inteligente: se digitou na caixinha, prioriza o texto manual. Se não, pega a lista.
+    # Processa o valor tratando a vírgula para formato numérico
+    try:
+        valor_limpo = valor_texto.replace("R$", "").replace(".", "").replace(",", ".").strip()
+        valor_final = float(valor_limpo) if valor_limpo else 0.0
+    except ValueError:
+        valor_final = 0.0
+
     if descricao_manual.strip():
         desc_final = descricao_manual.strip().upper()
     elif item_selecionado != "-- Selecione da lista --":
@@ -178,10 +180,10 @@ if submit_button:
     else:
         desc_final = None
 
-    if desc_final and valor > 0:
+    if desc_final and valor_final > 0:
         nova_linha = {
             "Descrição": desc_final,
-            "Valor": valor,
+            "Valor": valor_final,
             "Tipo": tipo,
             "Mês/Ano": mes_selecionado,
             "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -192,43 +194,63 @@ if submit_button:
         st.success("Adicionado com sucesso!")
         st.rerun()
     else:
-        st.warning("Por favor, informe uma descrição (selecionando ou digitando) e um valor maior que zero.")
+        st.warning("Por favor, preencha a descrição e um valor válido maior que zero.")
 
 st.markdown("---")
 
-# --- EXTRATO MENSAL INTERATIVO NATIVO ---
+# --- EXTRATO MENSAL TOTALMENTE EDITÁVEL E INTERATIVO ---
 st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
+st.caption("✏️ **Dica de Edição:** Dê dois cliques em qualquer célula (Descrição, Valor ou Tipo) para alterar os dados diretamente na tabela. Para excluir, marque o quadradinho inicial e clique na lixeira no topo.")
 
 if not df_mes.empty:
-    st.caption("💡 Para excluir: Clique no quadradinho no início da linha desejada e pressione o botão de lixeira no topo da tabela.")
-    
     df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Data Registro"]].copy()
     
     def colorir_linhas(row):
         styles = [''] * len(row)
-        if row['Tipo'] == '💰 Entrada':
+        if row['Tipo'] == '💰 Entrada' or row['Tipo'] == 'Entrada':
             styles = ['background-color: #e6fcf5; color: #0ca678; font-weight: bold;'] * len(row)
-        elif row['Tipo'] == '✈️ Caixinha Viagem':
+        elif row['Tipo'] == '✈️ Caixinha Viagem' or row['Tipo'] == 'Caixinha Viagem':
             styles = ['background-color: #fff9db; color: #f59e0b; font-weight: bold;'] * len(row)
         return styles
 
+    # st.data_editor agora com as colunas habilitadas para modificação direta!
     tabela_editada = st.data_editor(
         df_visual.style.apply(colorir_linhas, axis=1),
         hide_index=True,
         use_container_width=True,
         num_rows="dynamic",
-        column_config={"index_original": None},
+        column_config={
+            "index_original": None,
+            "Descrição": st.column_config.TextColumn("Descrição", required=True),
+            "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True),
+            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem"], required=True),
+            "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True)
+        },
         key="editor_extrato"
     )
     
+    # 1. Captura linhas DELETADAS
     if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("deleted_rows"):
         indices_deletados_tela = st.session_state.editor_extrato["deleted_rows"]
         indices_reais_para_deletar = [df_visual.iloc[idx_tela]['index_original'] for idx_tela in indices_deletados_tela]
-            
-        df_limpo = load_data()
-        df_atualizado = df_limpo.drop(indices_reais_para_deletar).reset_index(drop=True)
+        df_atualizado = load_data().drop(indices_reais_para_deletar).reset_index(drop=True)
         st.session_state.df = df_atualizado
         save_data(df_atualizado)
+        st.rerun()
+        
+    # 2. Captura edições DIRETAS realizadas nas células
+    if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("edited_rows"):
+        alteracoes = st.session_state.editor_extrato["edited_rows"]
+        df_principal = load_data()
+        
+        for idx_tela, colunas_alteradas in alteracoes.items():
+            idx_real = df_visual.iloc[int(idx_tela)]['index_original']
+            for nome_coluna, novo_valor in colunas_alteradas.items():
+                df_principal.at[idx_real, nome_coluna] = novo_valor
+                df_principal.at[idx_real, 'Data Registro'] = datetime.now().strftime("%d/%m/%Y %H:%M")
+                
+        st.session_state.df = df_principal
+        save_data(df_principal)
         st.rerun()
 else:
     st.info(f"Nenhum lançamento cadastrado para {mes_selecionado}.")
