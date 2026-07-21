@@ -121,36 +121,34 @@ with col4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- RETORNO DO TERMÔMETRO MENSAL ---
+# --- BLOCCO FIXO DO TERMÔMETRO MENSAL ---
+st.markdown("### 📊 Saúde Financeira")
 if entradas > 0:
-    st.markdown("### 📊 Saúde Financeira")
     porcentagem_gasta = (total_saidas / entradas) * 100
     if porcentagem_gasta <= 60:
-        st.success(f"🟢 **Situação sob controle:** Você gastou **{porcentagem_gasta:.1f}%** das suas entradas (dentro do limite recomendado de 60%).")
+        st.success(f"🟢 **Situação sob controle:** Você gastou **{porcentagem_gasta:.1f}%** das suas entradas (dentro da meta ideal recomendada de até 60%).")
     elif porcentagem_gasta <= 100:
-        st.warning(f"🟡 **Sinal de atenção:** Seus gastos já tomaram **{porcentagem_gasta:.1f}%** do seu orçamento mensal.")
+        st.warning(f"🟡 **Sinal de atenção:** Seus gastos já tomaram **{porcentagem_gasta:.1f}%** do seu orçamento total mensal.")
     else:
-        st.error(f"🔴 **Orçamento estourado:** Você gastou **{porcentagem_gasta:.1f}%** em relação ao que arrecadou!")
+        st.error(f"🔴 **Orçamento estourado:** Você está operando com **{porcentagem_gasta:.1f}%** de gastos sobre a sua arrecadação!")
     st.progress(min(porcentagem_gasta / 100, 1.0))
 else:
-    st.info("💡 Insira uma entrada de receita para liberar o gráfico de gastos mensais.")
+    st.info("💡 Insira um lançamento do tipo '💰 Entrada' (salário ou ganhos) para ativar o gráfico de gastos mensais.")
 
 st.markdown("---")
 
-# --- FORMULÁRIO COMPACTO 2X2 REESTRUTURADO ---
+# --- FORMULÁRIO COMPACTO 2X2 ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
 opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM"]
 
 with st.form(key='finance_form', clear_on_submit=True):
-    # Linha 1 do Formulário: Caixas de Descrição Espaçosas
     col_l1_a, col_l1_b = st.columns(2)
     with col_l1_a:
         item_selecionado = st.selectbox("Escolha um gasto da lista:", opcoes_selectbox)
     with col_l1_b:
         descricao_manual = st.text_input("Ou digite um item novo:", placeholder="Ex: MERCADO, POSTO...")
         
-    # Linha 2 do Formulário: Valor largo e Categoria
     col_l2_a, col_l2_b = st.columns(2)
     with col_l2_a:
         valor_texto = st.text_input("Valor do Lançamento (R$):", placeholder="0,00")
