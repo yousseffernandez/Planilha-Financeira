@@ -14,7 +14,7 @@ st.set_page_config(
 # Nome do arquivo onde os dados serão salvos
 DATA_FILE = "dados_financeiros.csv"
 
-# Função para carregar os dados protegendo contra arquivos antigos
+# Função para carregar os dados
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -38,49 +38,53 @@ def save_data(df):
 if 'df' not in st.session_state:
     st.session_state.df = load_data()
 
-# --- NAVEGAÇÃO ENTRE MESES DINÂMICA ---
-st.sidebar.title("📅 Meses (Abas)")
-
+# --- VARIÁVEIS DE DATA ---
 meses_ano = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ]
-
-# DETECÇÃO DINÂMICA DO ANO
 data_hoje = datetime.now()
 ano_atual = data_hoje.year
-mes_atual_idx = data_hoje.month - 1
+mes_atual_nome = meses_ano[data_hoje.month - 1]
 
-# Cria opções para o Ano Passado, Ano Atual e Próximo Ano
+# Estado para controlar qual mês está ativo no app (Padrão: Mês Atual)
+if 'mes_ativo' not in st.session_state:
+    st.session_state.mes_ativo = f"{mes_atual_nome} / {ano_atual}"
+
+# --- NAVEGAÇÃO NA SIDEBAR (ANOS RECOLHÍVEIS COM SETINHA) ---
+st.sidebar.title("📅 Histórico Financeiro")
+st.sidebar.markdown("Escolha o ano e clique no mês:")
+
+# Exibir Ano Passado, Ano Atual e Próximo Ano
 anos_disponiveis = [ano_atual - 1, ano_atual, ano_atual + 1]
 
-opcoes_meses = []
-for ano in anos_disponiveis:
-    for mes in meses_ano:
-        opcoes_meses.append(f"{mes} / {ano}")
+for ano in list(reversed(anos_disponiveis)):
+    # Deixa o expansor do ano atual aberto por padrão, os outros começam fechados
+    esta_aberto = (ano == ano_atual)
+    
+    with st.sidebar.expander(f"📁 Ano {ano}", expanded=esta_aberto):
+        # Cria botões verticais organizados para cada mês
+        for mes in meses_ano:
+            nome_opcao = f"{mes} / {ano}"
+            # Se for o mês que está selecionado, ganha um destaque visual básico
+            label_botao = f"📌 {mes}" if st.session_state.mes_ativo == nome_opcao else mes
+            
+            if st.button(label_botao, key=f"btn_{mes}_{ano}", use_container_width=True):
+                st.session_state.mes_ativo = nome_opcao
+                st.rerun()
 
-# Define a aba padrão exatamente no mês e ano correntes
-texto_mes_atual = f"{meses_ano[mes_atual_idx]} / {ano_atual}"
-try:
-    padrao_index = opcoes_meses.index(texto_mes_atual)
-except ValueError:
-    padrao_index = 0
+# Recupera o mês selecionado pelo usuário
+mes_selecionado = st.session_state.mes_ativo
 
-mes_selecionado = st.sidebar.radio(
-    "Selecione o mês para gerenciar:",
-    opcoes_meses,
-    index=padrao_index
-)
-
-# --- TÍTULO DO MÊS ATUAL ---
+# --- TÍTULO PRINCIPAL ---
 st.title(f"💰 FinançasPro — {mes_selecionado}")
 st.markdown("---")
 
-# --- FILTRAR DADOS DO MÊS SELECIONADO ---
+# --- FILTRAR DADOS ---
 df_geral = st.session_state.df
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
-# --- PROCESSAMENTO DOS TOTAIS DO MÊS ---
+# --- PROCESSAMENTO DOS TOTAIS ---
 entradas = df_mes[df_mes['Tipo'] == '💰 Entrada']['Valor'].sum()
 gastos_fixos = df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
 gastos_extras = df_mes[df_mes['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
@@ -127,19 +131,34 @@ if submit_button:
         }
         st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([nova_linha])], ignore_index=True)
         save_data(st.session_state.df)
-        st.success(f"Adicionado com sucesso em {mes_selecionado}!")
+        st.success(f"Adicionado com sucesso!")
         st.rerun()
     else:
         st.warning("Por favor, preencha a descrição e um valor maior que zero.")
 
 st.markdown("---")
 
-# --- EXTRATO MENSAL ---
+# --- EXTRATO MENSAL COM OPÇÃO DE DELETAR ITEM ---
 st.markdown(f"### 📋 Extrato de {mes_selecionado}")
 
 if not df_mes.empty:
+    # Exibe a tabela normal formatada
     df_exibicao = df_mes.copy()
     df_exibicao['Valor'] = df_exibicao['Valor'].map(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     st.dataframe(df_exibicao[["Descrição", "Valor", "Tipo", "Data Registro"]], use_container_width=True, hide_index=True)
+    
+    # Caixa para deletar algum item errado
+    st.markdown("#### 🗑️ Remover um lançamento")
+    lista_itens = df_mes["Descrição"].tolist()
+    item_para_deletar = st.selectbox("Selecione o item para excluir:", ["-- Selecione --"] + lista_itens)
+    
+    if item_para_deletar != "-- Selecione --":
+        if st.button("Confirmar Exclusão", type="primary"):
+            # Encontra o índice real no dataframe geral e remove
+            idx_deletar = df_mes[df_mes["Descrição"] == item_para_deletar].index[0]
+            st.session_state.df = st.session_state.df.drop(idx_deletar).reset_index(drop=True)
+            save_data(st.session_state.df)
+            st.success("Item removido com sucesso!")
+            st.rerun()
 else:
     st.info(f"Nenhum lançamento cadastrado para {mes_selecionado}.")
