@@ -41,7 +41,7 @@ if 'df' not in st.session_state:
 itens_ja_usados = []
 if not st.session_state.df.empty:
     descricoes_salvas = st.session_state.df["Descrição"].dropna().unique().tolist()
-    itens_ja_usados = sorted([d.strip().upper() for d in descricoes_salvas if d.strip()])
+    itens_ja_usados = sorted([str(d).strip().upper() for d in descricoes_salvas if str(d).strip()])
 
 # --- VARIÁVEIS DE DATA ---
 meses_ano = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
@@ -131,13 +131,13 @@ with col5:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # --- TERMÔMETRO MENSAL ---
+st.markdown("### 📊 Saúde Financeira")
 if entradas > 0:
-    st.markdown("### 📊 Saúde Financeira")
     porcentagem_gasta = ((gastos_fixos + gastos_extras) / entradas) * 100
     porcentagem_investida = (investimentos / entradas) * 100
     
     if porcentagem_gasta <= 60:
-        st.success(f"🟢 **Custo de Vida sob controle:** Seus gastos fixos/extras consomem **{porcentagem_gasta:.1f}%** da renda (dentro do limite ideal de 60%).")
+        st.success(f"🟢 **Custo de Vida sob controle:** Seus gastos fixos/extras consomem **{porcentagem_gasta:.1f}%** da renda (dentro da meta ideal de 60%).")
     else:
         st.error(f"🔴 **Custo de Vida alto:** Seus custos fixos/extras já comprometeram **{porcentagem_gasta:.1f}%** da sua renda!")
         
@@ -148,7 +148,7 @@ else:
 
 st.markdown("---")
 
-# --- FORMULÁRIO COMPACTO 2X2 ---
+# --- FORMULÁRIO COMPACTO CORRIGIDO ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
 opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"]
@@ -167,7 +167,7 @@ with st.form(key='finance_form', clear_on_submit=True):
         tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem", "📈 Investimentos"])
         
     st.markdown("<br>", unsafe_allow_html=True)
-    submit_button = st.form_submit_button(label="💾 Adicionar Lançamento", use_container_width=True)
+    submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
 
 if submit_button:
     try:
@@ -180,7 +180,7 @@ if submit_button:
         desc_final = descricao_manual.strip().upper()
     elif item_selecionado != "-- Selecione da lista --":
         if "💰" in item_selecionado or "✈️" in item_selecionado or "📈" in item_selecionado:
-            desc_final = item_selecionado.split("(")[0].strip().replace("💰 ", "").replace("✈️ ", "").replace("📈 ", "")
+            desc_final = item_selecionado.replace("💰 ", "").replace("✈️ ", "").replace("📈 ", "").strip()
         else:
             desc_final = item_selecionado
     else:
