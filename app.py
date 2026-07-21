@@ -3,12 +3,12 @@ import pandas as pd
 from datetime import datetime
 import os
 
-# Configuração da página (deve ser o primeiro comando Streamlit)
+# Configuração da página
 st.set_page_config(
     page_title="FinançasPro Mensal",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded" # Mantém a barra de meses visível
 )
 
 # Nome do arquivo onde os dados serão salvos
@@ -18,10 +18,9 @@ DATA_FILE = "dados_financeiros.csv"
 def load_data():
     if os.path.exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
-        # Garante que a coluna valor é numérica
         df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce')
         return df
-    return pd.DataFrame(columns=["Descrição", "Valor", "Tipo", "Data"])
+    return pd.DataFrame(columns=["Descrição", "Valor", "Tipo", "Mês/Ano", "Data Registro"])
 
 # Função para salvar os dados
 def save_data(df):
@@ -31,47 +30,67 @@ def save_data(df):
 if 'df' not in st.session_state:
     st.session_state.df = load_data()
 
-# Título Principal
-st.title("💰 FinançasPro Mensal")
-mes_atual = datetime.now().strftime("%B / %Y").capitalize()
-st.subheader(f"📅 Período: {mes_atual}")
+# --- NAVEGAÇÃO ENTRE MESES (AS "ABAS DO EXCEL") ---
+st.sidebar.title("📅 Meses (Abas)")
 
+# Criar lista de meses para seleção rápida
+meses_ano = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+]
+ano_atual = datetime.now().year
+
+# Cria uma lista de opções como "Julho / 2026", "Junho / 2026", etc.
+opcoes_meses = [f"{mes} / {ano_atual}" for mes in meses_ano]
+
+# Define o mês atual como padrão na abertura do app
+mes_atual_nome = meses_ano[datetime.now().month - 1]
+padrao_index = opcoes_meses.index(f"{mes_atual_nome} / {ano_atual}")
+
+# Seletor na barra lateral que funciona como as abas
+mes_selecionado = st.sidebar.radio(
+    "Selecione o mês para gerenciar:",
+    opcoes_meses,
+    index=padrao_index
+)
+
+# --- TÍTULO DO MÊS ATUAL ---
+st.title(f"💰 FinançasPro — {mes_selecionado}")
 st.markdown("---")
 
-# --- PROCESSAMENTO DOS TOTAIS ---
-df_atual = st.session_state.df
+# --- FILTRAR DADOS DO MÊS SELECIONADO ---
+df_geral = st.session_state.df
+df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
-entradas = df_atual[df_atual['Tipo'] == '💰 Entrada']['Valor'].sum()
-gastos_fixos = df_atual[df_atual['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
-gastos_extras = df_atual[df_atual['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
-caixinha_viagem = df_atual[df_atual['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
+# --- PROCESSAMENTO DOS TOTAIS DO MÊS ---
+entradas = df_mes[df_mes['Tipo'] == '💰 Entrada']['Valor'].sum()
+gastos_fixos = df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
+gastos_extras = df_mes[df_mes['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
+caixinha_viagem = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
 
-# Total de saídas inclui gastos e o que foi guardado na caixinha
 total_saidas = gastos_fixos + gastos_extras + caixinha_viagem
 saldo_livre = entradas - total_saidas
 
-# --- CARDS DE RESUMO (Se adaptam ao celular automaticamente) ---
+# --- CARDS DE RESUMO ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
-
 with col1:
     st.metric(label="Quanto Entrou", value=f"R$ {entradas:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 with col2:
-    st.metric(label="Quanto Saiu", value=f"R$ {total_saidas:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), delta=f"-R$ {total_saidas:,.2f}", delta_color="inverse")
+    st.metric(label="Quanto Saiu", value=f"R$ {total_saidas:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 with col3:
-    st.metric(label="Saldo Livre", value=f"R$ {saldo_livre:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), delta=f"R$ {saldo_livre:,.2f}" if saldo_livre >= 0 else f"R$ {saldo_livre:,.2f}")
+    st.metric(label="Saldo Livre", value=f"R$ {saldo_livre:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 with col4:
-    # Card destacado para a caixinha viagem
     st.info(f"✈️ **Caixinha Viagem**\n\n### R$ {caixinha_viagem:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
 st.markdown("---")
 
 # --- FORMULÁRIO DE CADASTRO ---
-st.markdown("### ➕ Novo Lançamento")
+st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 with st.form(key='finance_form', clear_on_submit=True):
     col_desc, col_val, col_tipo = st.columns([2, 1, 1.5])
     
     with col_desc:
-        descricao = st.text_input("Descrição", placeholder="Ex: Salário, Aluguel, Mercado...")
+        descricao = st.text_input("Descrição", placeholder="Ex: Salário, Aluguel, Internet...")
     with col_val:
         valor = st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f")
     with col_tipo:
@@ -79,40 +98,32 @@ with st.form(key='finance_form', clear_on_submit=True):
         
     submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
 
-# Ação ao clicar no botão
 if submit_button:
     if descricao and valor > 0:
         nova_linha = {
             "Descrição": descricao,
             "Valor": valor,
             "Tipo": tipo,
-            "Data": datetime.now().strftime("%d/%m/%Y %H:%M")
+            "Mês/Ano": mes_selecionado, # Vincula o gasto diretamente ao mês selecionado na aba
+            "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M")
         }
-        # Adiciona ao DataFrame
         st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([nova_linha])], ignore_index=True)
         save_data(st.session_state.df)
-        st.success("Lançamento adicionado com sucesso!")
+        st.success(f"Adicionado com sucesso em {mes_selecionado}!")
         st.rerun()
     else:
         st.warning("Por favor, preencha a descrição e um valor maior que zero.")
 
 st.markdown("---")
 
-# --- TABELA DE LANÇAMENTOS (EXTRATO) ---
-st.markdown("### 📋 Extrato Mensal")
+# --- EXTRATO MENSAL ---
+st.markdown(f"### 📋 Extrato de {mes_selecionado}")
 
-if not st.session_state.df.empty:
-    # Exibe a tabela formatada e bonita
-    df_exibicao = st.session_state.df.copy()
+if not df_mes.empty:
+    df_exibicao = df_mes.copy()
     df_exibicao['Valor'] = df_exibicao['Valor'].map(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     
-    st.dataframe(df_exibicao, use_container_width=True, hide_index=True)
-    
-    # Botão para limpar o mês/histórico se necessário
-    if st.button("🗑️ Limpar Todos os Dados"):
-        st.session_state.df = pd.DataFrame(columns=["Descrição", "Valor", "Tipo", "Data"])
-        save_data(st.session_state.df)
-        st.success("Todos os dados foram apagados!")
-        st.rerun()
+    # Esconde colunas internas de controle para a visualização ficar limpa
+    st.dataframe(df_exibicao[["Descrição", "Valor", "Tipo", "Data Registro"]], use_container_width=True, hide_index=True)
 else:
-    st.info("Nenhum lançamento cadastrado ainda.")
+    st.info(f"Nenhum lançamento cadastrado para {mes_selecionado}.")
