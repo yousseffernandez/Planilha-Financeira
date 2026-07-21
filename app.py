@@ -37,13 +37,7 @@ def save_data(df):
 if 'df' not in st.session_state:
     st.session_state.df = load_data()
 
-# --- INTELIGÊNCIA: DESCOBRIR HISTÓRICO DE GASTOS PARA RECOMENDAÇÃO ---
-itens_ja_usados = []
-if not st.session_state.df.empty:
-    descricoes_salvas = st.session_state.df["Descrição"].dropna().unique().tolist()
-    itens_ja_usados = sorted(list(set(descricoes_salvas)))
-
-# --- VARIÁVEIS DE DATA ---
+# --- VARIÁVEIS DE DATA E ESTRUTURA ---
 meses_ano = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 data_hoje = datetime.now()
 ano_atual = data_hoje.year
@@ -55,6 +49,12 @@ if 'mes_ativo' not in st.session_state:
 # --- NAVEGAÇÃO NA SIDEBAR ---
 st.sidebar.title("📅 Histórico Financeiro")
 anos_disponiveis = [ano_atual - 1, ano_atual, ano_atual + 1]
+
+# Mapeamento para descobrir o mês anterior para o clone inteligente
+opcoes_meses_ordenadas = []
+for ano in anos_disponiveis:
+    for m in meses_ano:
+        opcoes_meses_ordenadas.append(f"{m} / {ano}")
 
 for ano in list(reversed(anos_disponiveis)):
     esta_aberto = (ano == ano_atual)
@@ -73,6 +73,49 @@ st.title(f"💰 FinançasPro — {mes_selecionado}")
 st.markdown("---")
 
 # --- FILTRAR DADOS ---
+df_geral = st.session_state.df.copy()
+df_geral['index_original'] = df_geral.index
+df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
+
+# --- RECURSO INTELIGENTE: IMPORTAR MES ANTERIOR ---
+if df_mes.empty:
+    st.info(f"✨ O mês de {mes_selecionado} ainda está vazio!")
+    
+    # Tenta descobrir qual é o mês anterior na nossa linha do tempo
+    try:
+        idx_atual_timeline = opcoes_meses_ordenadas.index(mes_selecionado)
+        mes_anterior_nome = opcoes_meses_ordenadas[idx_atual_timeline - 1]
+    except:
+        mes_anterior_nome = None
+        
+    if mes_anterior_nome:
+        df_anterior = st.session_state.df[st.session_state.df['Mês/Ano'] == mes_anterior_nome]
+        
+        if not df_anterior.empty:
+            st.markdown(f"Gostaria de puxar a estrutura padrão usada em **{mes_anterior_nome}** para poupar digitação?")
+            if st.button(f"📋 Copiar itens de {mes_anterior_nome}", type="primary", use_container_width=True):
+                novas_linhas = []
+                # Pega as descrições únicas gastas no mês passado
+                itens_passados = df_anterior.drop_duplicates(subset=["Descrição"])
+                for _, row in itens_passados.iterrows():
+                    # Só puxa o que for gasto (ignora Entradas antigas para começar zerado)
+                    tipo_item = row['Tipo']
+                    valor_inicial = 0.0 if "Entrada" not in tipo_item else 0.0
+                    
+                    novas_linhas.append({
+                        "Descrição": row['Descrição'],
+                        "Valor": valor_inicial,
+                        "Tipo": tipo_item,
+                        "Mês/Ano": mes_selecionado,
+                        "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M")
+                    })
+                
+                st.session_state.df = pd.concat([load_data(), pd.DataFrame(novas_linhas)], ignore_index=True)
+                save_data(st.session_state.df)
+                st.success("Estrutura importada! Agora basta definir os valores abaixo.")
+                st.rerun()
+
+# Re-filtrar após possível importação
 df_geral = st.session_state.df.copy()
 df_geral['index_original'] = df_geral.index
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
@@ -99,31 +142,46 @@ with col4:
 
 st.markdown("---")
 
-# --- FORMULÁRIO SIMPLIFICADO DIRETO ---
-st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
+# --- SEÇÃO DE ATUALIZAÇÃO RÁPIDA DE ITENS EXISTENTES ---
+if not df_mes.empty:
+    st.markdown("### 📝 Ajustar Valores dos Gastos Desse Mês")
+    st.caption("Selecione um item importado/existente na lista abaixo para definir o valor real deste mês:")
+    
+    col_edit_item, col_edit_val, col_edit_btn = st.columns([2, 1, 1])
+    with col_edit_item:
+        lista_itens_editar = df_mes["Descrição"].unique().tolist()
+        item_para_editar = st.selectbox("Escolha o Item:", lista_itens_editar, key="edit_select_box")
+    with col_edit_val:
+        valor_atual = df_mes[df_mes["Descrição"] == item_para_editar]["Valor"].values[0] if lista_itens_editar else 0.0
+        novo_valor = st.number_input("Valor Corrente (R$):", min_value=0.0, value=float(valor_atual), step=10.0, key="edit_number_input")
+    with col_edit_btn:
+        st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
+        if st.button("Salvar Valor Atualizado", use_container_width=True, type="secondary"):
+            idx_original_item = df_mes[df_mes["Descrição"] == item_para_editar]["index_original"].values[0]
+            st.session_state.df.at[idx_original_item, 'Valor'] = novo_valor
+            st.session_state.df.at[idx_original_item, 'Data Registro'] = datetime.now().strftime("%d/%m/%Y %H:%M")
+            save_data(st.session_state.df)
+            st.success("Valor salvo!")
+            st.rerun()
+            
+    st.markdown("---")
 
+# --- FORMULÁRIO DE CADASTRO PARA ITENS COMPLEMENTARES ---
+st.markdown(f"### ➕ Adicionar Item Inédito no Mês")
 with st.form(key='finance_form', clear_on_submit=True):
     col_desc, col_val, col_tipo = st.columns([2, 1, 1.5])
     
     with col_desc:
-        # Campo de texto aberto para escrever o que quiser na hora
-        descricao_digitada = st.text_input("Descrição do Gasto:", placeholder="Ex: CASA, PASSE MÃE, ALUGUEL...")
-        
-        # Mostra lembretes rápidos das coisas que você mais usa para clicar se quiser
-        if itens_ja_usados:
-            st.caption(f"Gastos já cadastrados anteriormente: {', '.join(itens_ja_usados[:6])}")
-            
+        descricao_digitada = st.text_input("Descrição do Lançamento:", placeholder="Ex: MERCADO, RESTAURANTE, SALÁRIO...")
     with col_val:
         valor = st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f")
-        
     with col_tipo:
         tipo = st.selectbox("Tipo / Categoria", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem"])
         
-    submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
+    submit_button = st.form_submit_button(label="Cadastrar Novo Item", use_container_width=True)
 
 if submit_button:
     desc_final = descricao_digitada.strip().upper()
-
     if desc_final and valor > 0:
         nova_linha = {
             "Descrição": desc_final,
@@ -135,18 +193,18 @@ if submit_button:
         df_atual = load_data()
         st.session_state.df = pd.concat([df_atual, pd.DataFrame([nova_linha])], ignore_index=True)
         save_data(st.session_state.df)
-        st.success("Adicionado com sucesso!")
+        st.success("Adicionado!")
         st.rerun()
     else:
-        st.warning("Por favor, preencha o valor e a descrição corretamente.")
+        st.warning("Preencha os campos corretamente.")
 
 st.markdown("---")
 
-# --- EXTRATO MENSAL INTERATIVO NATIVO REATIVADO ---
+# --- EXTRATO COMPLETO COM EXCLUSÃO DIRETA ---
 st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
 
 if not df_mes.empty:
-    st.caption("💡 Para excluir: Clique no quadradinho no início da linha desejada e pressione o botão de lixeira no topo da tabela.")
+    st.caption("💡 Para excluir: Clique no quadradinho no início da linha desejada e pressione a lixeira no topo da tabela.")
     
     df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Data Registro"]].copy()
     
