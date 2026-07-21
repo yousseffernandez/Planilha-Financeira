@@ -19,7 +19,6 @@ def load_data():
     if os.path.exists(DATA_FILE):
         try:
             df = pd.read_csv(DATA_FILE)
-            # Se o arquivo antigo não tiver a coluna nova, nós criamos ela vazia aqui
             if "Mês/Ano" not in df.columns:
                 df["Mês/Ano"] = datetime.now().strftime("%B / %Y").capitalize()
             if "Data Registro" not in df.columns:
@@ -39,17 +38,33 @@ def save_data(df):
 if 'df' not in st.session_state:
     st.session_state.df = load_data()
 
-# --- NAVEGAÇÃO ENTRE MESES (AS "ABAS DO EXCEL") ---
+# --- NAVEGAÇÃO ENTRE MESES DINÂMICA ---
 st.sidebar.title("📅 Meses (Abas)")
 
 meses_ano = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ]
-ano_atual = 2026
 
-opcoes_meses = [f"{mes} / {ano_atual}" for mes in meses_ano]
-padrao_index = 6  # Padrão em Julho / 2026
+# DETECÇÃO DINÂMICA DO ANO
+data_hoje = datetime.now()
+ano_atual = data_hoje.year
+mes_atual_idx = data_hoje.month - 1
+
+# Cria opções para o Ano Passado, Ano Atual e Próximo Ano
+anos_disponiveis = [ano_atual - 1, ano_atual, ano_atual + 1]
+
+opcoes_meses = []
+for ano in anos_disponiveis:
+    for mes in meses_ano:
+        opcoes_meses.append(f"{mes} / {ano}")
+
+# Define a aba padrão exatamente no mês e ano correntes
+texto_mes_atual = f"{meses_ano[mes_atual_idx]} / {ano_atual}"
+try:
+    padrao_index = opcoes_meses.index(texto_mes_atual)
+except ValueError:
+    padrao_index = 0
 
 mes_selecionado = st.sidebar.radio(
     "Selecione o mês para gerenciar:",
