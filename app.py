@@ -86,84 +86,81 @@ caixinha_viagem = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor'].su
 total_saidas = gastos_fixos + gastos_extras + caixinha_viagem
 saldo_livre = entradas - total_saidas
 
-# --- CARDS DE RESUMO ---
+# --- CARDS DE RESUMO REESTILIZADOS ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 with col1:
     st.markdown(
-        f"""<div style="border: 1px solid #d1fae5; border-left: 5px solid #10b981; background-color: #f0fdf4; padding: 15px; border-radius: 12px; margin-bottom: 10px;">
-            <span style="color: #065f46; font-size: 14px; font-weight: 600;">QUANTO ENTROU</span><br>
-            <span style="color: #10b981; font-size: 24px; font-weight: 700;">R$ {entradas:,.2f}</span>
+        f"""<div style="border: 1px solid #10b981; border-left: 6px solid #10b981; background-color: #0f172a; padding: 15px; border-radius: 12px;">
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">💰 QUANTO ENTROU</span><br>
+            <span style="color: #10b981; font-size: 24px; font-weight: 800;">R$ {entradas:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 with col2:
     st.markdown(
-        f"""<div style="border: 1px solid #fee2e2; border-left: 5px solid #ef4444; background-color: #fef2f2; padding: 15px; border-radius: 12px; margin-bottom: 10px;">
-            <span style="color: #991b1b; font-size: 14px; font-weight: 600;">QUANTO SAIU</span><br>
-            <span style="color: #ef4444; font-size: 24px; font-weight: 700;">R$ {total_saidas:,.2f}</span>
+        f"""<div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 15px; border-radius: 12px;">
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📉 QUANTO SAIU</span><br>
+            <span style="color: #ef4444; font-size: 24px; font-weight: 800;">R$ {total_saidas:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 with col3:
-    if saldo_livre >= 0:
-        cor_borda, cor_fundo, cor_texto, txt_label = "#10b981", "#f0fdf4", "#10b981", "#065f46"
-    else:
-        cor_borda, cor_fundo, cor_texto, txt_label = "#ef4444", "#fef2f2", "#ef4444", "#991b1b"
-        
+    cor_status = "#10b981" if saldo_livre >= 0 else "#ef4444"
     st.markdown(
-        f"""<div style="border: 1px solid {cor_fundo}; border-left: 5px solid {cor_borda}; background-color: {cor_fundo}; padding: 15px; border-radius: 12px; margin-bottom: 10px;">
-            <span style="color: {txt_label}; font-size: 14px; font-weight: 600;">SALDO LIVRE</span><br>
-            <span style="color: {cor_texto}; font-size: 24px; font-weight: 700;">R$ {saldo_livre:,.2f}</span>
+        f"""<div style="border: 1px solid {cor_status}; border-left: 6px solid {cor_status}; background-color: #0f172a; padding: 15px; border-radius: 12px;">
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">⚖️ SALDO LIVRE</span><br>
+            <span style="color: {cor_status}; font-size: 24px; font-weight: 800;">R$ {saldo_livre:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 with col4:
     st.markdown(
-        f"""<div style="border: 1px solid #fef3c7; border-left: 5px solid #f59e0b; background-color: #fffbeb; padding: 15px; border-radius: 12px; margin-bottom: 10px;">
-            <span style="color: #92400e; font-size: 14px; font-weight: 600;">✈️ CAIXINHA VIAGEM</span><br>
-            <span style="color: #f59e0b; font-size: 24px; font-weight: 700;">R$ {caixinha_viagem:,.2f}</span>
+        f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 15px; border-radius: 12px;">
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">✈️ CAIXINHA VIAGEM</span><br>
+            <span style="color: #f59e0b; font-size: 24px; font-weight: 800;">R$ {caixinha_viagem:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 
-# --- TERMÔMETRO MENSAL ---
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --- RETORNO DO TERMÔMETRO MENSAL ---
 if entradas > 0:
+    st.markdown("### 📊 Saúde Financeira")
     porcentagem_gasta = (total_saidas / entradas) * 100
     if porcentagem_gasta <= 60:
-        status_texto = "🟢 SITUAÇÃO CONTROLADA: Excelente! Gastos dentro da meta ideal (até 60%)."
+        st.success(f"🟢 **Situação sob controle:** Você gastou **{porcentagem_gasta:.1f}%** das suas entradas (dentro do limite recomendado de 60%).")
     elif porcentagem_gasta <= 100:
-        status_texto = "🟡 ATENÇÃO: Seus gastos ultrapassaram a recomendação de 60%."
+        st.warning(f"🟡 **Sinal de atenção:** Seus gastos já tomaram **{porcentagem_gasta:.1f}%** do seu orçamento mensal.")
     else:
-        status_texto = "🔴 INVERSÃO PATRIMONIAL: Você gastou mais do que arrecadou este mês."
-    st.markdown(f"### 📊 Como estou no mês?")
-    st.markdown(f"**Status:** {status_texto}")
+        st.error(f"🔴 **Orçamento estourado:** Você gastou **{porcentagem_gasta:.1f}%** em relação ao que arrecadou!")
     st.progress(min(porcentagem_gasta / 100, 1.0))
-    st.caption(f"Comprometido: **{porcentagem_gasta:.1f}%** | Livre: **{max(0.0, 100.0 - porcentagem_gasta):.1f}%**")
+else:
+    st.info("💡 Insira uma entrada de receita para liberar o gráfico de gastos mensais.")
 
 st.markdown("---")
 
-# --- FORMULÁRIO OTIMIZADO ---
+# --- FORMULÁRIO COM LARGURA DE COLUNAS AJUSTADA ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
 opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM"]
 
 with st.form(key='finance_form', clear_on_submit=True):
-    col_desc_select, col_desc_input, col_val, col_tipo = st.columns([1.5, 1.5, 1, 1])
+    # Alteração nas proporções das colunas: Valor ganhou mais espaço
+    col_desc_select, col_desc_input, col_val, col_tipo = st.columns([1.2, 1.2, 0.8, 1.2])
     
     with col_desc_select:
         item_selecionado = st.selectbox("Escolha da lista:", opcoes_selectbox)
         
     with col_desc_input:
-        descricao_manual = st.text_input("Ou digite um gasto novo:", placeholder="Ex: SERCOM, MERCADO...")
+        descricao_manual = st.text_input("Ou digite um gasto novo:", placeholder="Ex: MERCADO, POSTO...")
         
     with col_val:
-        # Mudado para text_input para aceitar vírgula perfeitamente e vir limpo por padrão!
         valor_texto = st.text_input("Valor (R$):", placeholder="0,00")
         
     with col_tipo:
         tipo = st.selectbox("Tipo / Categoria", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem"])
         
-    submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
+    submit_button = st.form_submit_button(label="🚀 Adicionar Lançamento", use_container_width=True)
 
 if submit_button:
-    # Processa o valor tratando a vírgula para formato numérico
     try:
         valor_limpo = valor_texto.replace("R$", "").replace(".", "").replace(",", ".").strip()
         valor_final = float(valor_limpo) if valor_limpo else 0.0
@@ -194,26 +191,25 @@ if submit_button:
         st.success("Adicionado com sucesso!")
         st.rerun()
     else:
-        st.warning("Por favor, preencha a descrição e um valor válido maior que zero.")
+        st.warning("Por favor, preencha a descrição e insira um valor válido.")
 
 st.markdown("---")
 
-# --- EXTRATO MENSAL TOTALMENTE EDITÁVEL E INTERATIVO ---
+# --- EXTRATO MENSAL INTERATIVO ---
 st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
-st.caption("✏️ **Dica de Edição:** Dê dois cliques em qualquer célula (Descrição, Valor ou Tipo) para alterar os dados diretamente na tabela. Para excluir, marque o quadradinho inicial e clique na lixeira no topo.")
+st.caption("✏️ **Dica:** Dê dois cliques em qualquer célula para editar na hora. Marque a caixinha lateral e use a lixeira no topo para remover.")
 
 if not df_mes.empty:
     df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Data Registro"]].copy()
     
     def colorir_linhas(row):
         styles = [''] * len(row)
-        if row['Tipo'] == '💰 Entrada' or row['Tipo'] == 'Entrada':
-            styles = ['background-color: #e6fcf5; color: #0ca678; font-weight: bold;'] * len(row)
-        elif row['Tipo'] == '✈️ Caixinha Viagem' or row['Tipo'] == 'Caixinha Viagem':
-            styles = ['background-color: #fff9db; color: #f59e0b; font-weight: bold;'] * len(row)
+        if row['Tipo'] in ['💰 Entrada', 'Entrada']:
+            styles = ['background-color: #064e3b; color: #34d399; font-weight: bold;'] * len(row)
+        elif row['Tipo'] in ['✈️ Caixinha Viagem', 'Caixinha Viagem']:
+            styles = ['background-color: #451a03; color: #fbbf24; font-weight: bold;'] * len(row)
         return styles
 
-    # st.data_editor agora com as colunas habilitadas para modificação direta!
     tabela_editada = st.data_editor(
         df_visual.style.apply(colorir_linhas, axis=1),
         hide_index=True,
@@ -229,7 +225,7 @@ if not df_mes.empty:
         key="editor_extrato"
     )
     
-    # 1. Captura linhas DELETADAS
+    # Exclusão
     if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("deleted_rows"):
         indices_deletados_tela = st.session_state.editor_extrato["deleted_rows"]
         indices_reais_para_deletar = [df_visual.iloc[idx_tela]['index_original'] for idx_tela in indices_deletados_tela]
@@ -238,7 +234,7 @@ if not df_mes.empty:
         save_data(df_atualizado)
         st.rerun()
         
-    # 2. Captura edições DIRETAS realizadas nas células
+    # Edição Celular
     if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("edited_rows"):
         alteracoes = st.session_state.editor_extrato["edited_rows"]
         df_principal = load_data()
