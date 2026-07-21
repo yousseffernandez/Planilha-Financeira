@@ -37,19 +37,14 @@ def save_data(df):
 if 'df' not in st.session_state:
     st.session_state.df = load_data()
 
-# --- INTELIGÊNCIA: DESCOBRIR ITENS DO MENU AUTOMATICAMENTE ---
-# O app lê tudo o que você já cadastrou na história e monta o menu suspenso sozinho
-lista_base_padrao = ["ÁGUA", "ASSINATURAS", "CASA", "CELULAR MÃE", "CONSULTOR", "FIES", "INTERNET BACKUP", "INTERNET SERCOMT", "LUZ", "MEU CELULAR", "PASSE MÃE", "SEGURO DE VIDA"]
-
+# --- INTELIGÊNCIA: DESCOBRIR ITENS DO MENU EXCLUSIVAMENTE DOS SEUS DADOS ---
+itens_menu_dinamico = []
 if not st.session_state.df.empty:
-    # Pega descrições antigas, ignora "Entrada" e "Caixinha Viagem" genéricos, e remove duplicados
+    # Lê o histórico de tudo o que VOCÊ digitou e monta o menu
     descricoes_salvas = st.session_state.df["Descrição"].unique().tolist()
+    # Ignora os termos do sistema para não duplicar
     descricoes_filtradas = [d for d in descricoes_salvas if d not in ["ENTRADA", "CAIXINHA VIAGEM"]]
-    
-    # Junta a lista padrão com o que o app aprendeu de novo e organiza em ordem alfabética
-    itens_menu_dinamico = sorted(list(set(lista_base_padrao + descricoes_filtradas)))
-else:
-    itens_menu_dinamico = sorted(lista_base_padrao)
+    itens_menu_dinamico = sorted(list(set(descricoes_filtradas)))
 
 # --- VARIÁVEIS DE DATA ---
 meses_ano = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
@@ -106,10 +101,9 @@ with col4:
 
 st.markdown("---")
 
-# --- FORMULÁRIO COM APRENDIZADO AUTOMÁTICO ---
+# --- FORMULÁRIO ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
-# Opções finais apresentadas no celular
 opcoes_finais_menu = itens_menu_dinamico + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM", "➕ OUTRO (Digitar novo gasto...)"]
 
 with st.form(key='finance_form', clear_on_submit=True):
@@ -130,7 +124,6 @@ with st.form(key='finance_form', clear_on_submit=True):
     submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
 
 if submit_button:
-    # Identifica a descrição com base na escolha
     if item_selecionado == "➕ OUTRO (Digitar novo gasto...)":
         desc_final = descricao_manual.strip().upper()
     elif "💰" in item_selecionado or "✈️" in item_selecionado:
@@ -149,13 +142,13 @@ if submit_button:
         st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([nova_linha])], ignore_index=True)
         save_data(st.session_state.df)
         st.success("Adicionado com sucesso!")
-        st.rerun() # O app recarrega e o novo item já fará parte do menu suspenso automaticamente
+        st.rerun()
     else:
         st.warning("Por favor, preencha o valor e a descrição corretamente.")
 
 st.markdown("---")
 
-# --- EXTRATO MENSAL COM OPÇÃO DE DELETAR ---
+# --- EXTRATO MENSAL ---
 st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
 if not df_mes.empty:
     df_exibicao = df_mes.copy()
