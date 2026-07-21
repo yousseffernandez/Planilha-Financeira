@@ -37,12 +37,11 @@ def save_data(df):
 if 'df' not in st.session_state:
     st.session_state.df = load_data()
 
-# --- INTELIGÊNCIA: DESCOBRIR ITENS DO MENU AUTOMATICAMENTE ---
-itens_menu_dinamico = []
+# --- INTELIGÊNCIA: DESCOBRIR HISTÓRICO DE GASTOS PARA RECOMENDAÇÃO ---
+itens_ja_usados = []
 if not st.session_state.df.empty:
     descricoes_salvas = st.session_state.df["Descrição"].dropna().unique().tolist()
-    descricoes_filtradas = [d for d in descricoes_salvas if d not in ["ENTRADA", "CAIXINHA VIAGEM"]]
-    itens_menu_dinamico = sorted(list(set(descricoes_filtradas)))
+    itens_ja_usados = sorted(list(set(descricoes_salvas)))
 
 # --- VARIÁVEIS DE DATA ---
 meses_ano = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
@@ -100,23 +99,19 @@ with col4:
 
 st.markdown("---")
 
-# --- FORMULÁRIO CORRIGIDO ---
+# --- FORMULÁRIO SIMPLIFICADO DIRETO ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
 with st.form(key='finance_form', clear_on_submit=True):
-    col_modo, col_desc, col_val, col_tipo = st.columns([1, 1.5, 1, 1])
+    col_desc, col_val, col_tipo = st.columns([2, 1, 1.5])
     
-    with col_modo:
-        modo_insercao = st.selectbox("Modo", ["📋 Escolher da lista", "✏️ Digitar novo"])
-        
     with col_desc:
-        if modo_insercao == "📋 Escolher da lista":
-            opcoes_lista = itens_menu_dinamico + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM"]
-            item_selecionado = st.selectbox("Selecione o Gasto", opcoes_lista if itens_menu_dinamico else ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM"])
-            desc_final = item_selecionado
-        else:
-            descricao_manual = st.text_input("Nome do novo gasto:", placeholder="Ex: CASA, ACADEMIA...")
-            desc_final = descricao_manual
+        # Campo de texto aberto para escrever o que quiser na hora
+        descricao_digitada = st.text_input("Descrição do Gasto:", placeholder="Ex: CASA, PASSE MÃE, ALUGUEL...")
+        
+        # Mostra lembretes rápidos das coisas que você mais usa para clicar se quiser
+        if itens_ja_usados:
+            st.caption(f"Gastos já cadastrados anteriormente: {', '.join(itens_ja_usados[:6])}")
             
     with col_val:
         valor = st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f")
@@ -127,10 +122,7 @@ with st.form(key='finance_form', clear_on_submit=True):
     submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
 
 if submit_button:
-    # Formatação do nome
-    if "💰" in desc_final or "✈️" in desc_final:
-        desc_final = desc_final.split("(")[0].strip().replace("💰 ", "").replace("✈️ ", "")
-    desc_final = desc_final.strip().upper()
+    desc_final = descricao_digitada.strip().upper()
 
     if desc_final and valor > 0:
         nova_linha = {
@@ -158,7 +150,6 @@ if not df_mes.empty:
     
     df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Data Registro"]].copy()
     
-    # Exibe a tabela nativa do editor com remoção direta ativada
     tabela_editada = st.data_editor(
         df_visual,
         hide_index=True,
@@ -168,7 +159,6 @@ if not df_mes.empty:
         key="editor_extrato"
     )
     
-    # Captura a remoção
     if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("deleted_rows"):
         indices_deletados_tela = st.session_state.editor_extrato["deleted_rows"]
         indices_reais_para_deletar = [df_visual.iloc[idx_tela]['index_original'] for idx_tela in indices_deletados_tela]
