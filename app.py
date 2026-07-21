@@ -11,31 +11,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Arquivos de armazenamento
+# Arquivo de armazenamento principal
 DATA_FILE = "dados_financeiros.csv"
-MENU_FILE = "itens_menu.txt"
 
-# --- GERENCIAMENTO DO MENU SUSPENSO DINÂMICO ---
-def carregar_itens_menu():
-    # Se o arquivo não existir, cria com uma lista base padrão
-    if not os.path.exists(MENU_FILE):
-        itens_padrao = ["ÁGUA", "ASSINATURAS", "CASA", "CELULAR MÃE", "CONSULTOR", "FIES", "INTERNET BACKUP", "INTERNET SERCOMT", "LUZ", "MEU CELULAR", "PASSE MÃE", "SEGURO DE VIDA"]
-        salvar_itens_menu(itens_padrao)
-        return itens_padrao
-    
-    with open(MENU_FILE, "r", encoding="utf-8") as f:
-        return [linha.strip().upper() for item in f.readlines() if (linha := item.strip())]
-
-def salvar_itens_menu(lista_itens):
-    with open(MENU_FILE, "w", encoding="utf-8") as f:
-        for item in sorted(list(set(lista_itens))): # Remove duplicados e ordena de A-Z
-            f.write(f"{item}\n")
-
-# Inicializa o menu suspenso na memória do app
-if 'itens_menu' not in st.session_state:
-    st.session_state.itens_menu = carregar_itens_menu()
-
-# --- GERENCIAMENTO DE DADOS ---
+# Função para carregar os dados
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -50,11 +29,27 @@ def load_data():
             pass
     return pd.DataFrame(columns=["Descrição", "Valor", "Tipo", "Mês/Ano", "Data Registro"])
 
+# Função para salvar os dados
 def save_data(df):
     df.to_csv(DATA_FILE, index=False)
 
+# Inicializar os dados na memória do Streamlit
 if 'df' not in st.session_state:
     st.session_state.df = load_data()
+
+# --- INTELIGÊNCIA: DESCOBRIR ITENS DO MENU AUTOMATICAMENTE ---
+# O app lê tudo o que você já cadastrou na história e monta o menu suspenso sozinho
+lista_base_padrao = ["ÁGUA", "ASSINATURAS", "CASA", "CELULAR MÃE", "CONSULTOR", "FIES", "INTERNET BACKUP", "INTERNET SERCOMT", "LUZ", "MEU CELULAR", "PASSE MÃE", "SEGURO DE VIDA"]
+
+if not st.session_state.df.empty:
+    # Pega descrições antigas, ignora "Entrada" e "Caixinha Viagem" genéricos, e remove duplicados
+    descricoes_salvas = st.session_state.df["Descrição"].unique().tolist()
+    descricoes_filtradas = [d for d in descricoes_salvas if d not in ["ENTRADA", "CAIXINHA VIAGEM"]]
+    
+    # Junta a lista padrão com o que o app aprendeu de novo e organiza em ordem alfabética
+    itens_menu_dinamico = sorted(list(set(lista_base_padrao + descricoes_filtradas)))
+else:
+    itens_menu_dinamico = sorted(lista_base_padrao)
 
 # --- VARIÁVEIS DE DATA ---
 meses_ano = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
@@ -111,11 +106,11 @@ with col4:
 
 st.markdown("---")
 
-# --- FORMULÁRIO PRINCIPAL ---
+# --- FORMULÁRIO COM APRENDIZADO AUTOMÁTICO ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
-# Prepara a lista do menu trazendo os itens dinâmicos do usuário + as opções fixas do app
-opcoes_finais_menu = st.session_state.itens_menu + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM", "➕ OUTRO (Digitar manualmente...)"]
+# Opções finais apresentadas no celular
+opcoes_finais_menu = itens_menu_dinamico + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM", "➕ OUTRO (Digitar novo gasto...)"]
 
 with st.form(key='finance_form', clear_on_submit=True):
     col_desc, col_val, col_tipo = st.columns([2, 1, 1.5])
@@ -123,8 +118,8 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_desc:
         item_selecionado = st.selectbox("Descrição (Item do Menu Suspenso)", opcoes_finais_menu)
         descricao_manual = ""
-        if item_selecionado == "➕ OUTRO (Digitar manualmente...)":
-            descricao_manual = st.text_input("Digite o nome do gasto personalizado:")
+        if item_selecionado == "➕ OUTRO (Digitar novo gasto...)":
+            descricao_manual = st.text_input("Digite o nome desse novo gasto:")
             
     with col_val:
         valor = st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f")
@@ -135,7 +130,8 @@ with st.form(key='finance_form', clear_on_submit=True):
     submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
 
 if submit_button:
-    if item_selecionado == "➕ OUTRO (Digitar manualmente...)":
+    # Identifica a descrição com base na escolha
+    if item_selecionado == "➕ OUTRO (Digitar novo gasto...)":
         desc_final = descricao_manual.strip().upper()
     elif "💰" in item_selecionado or "✈️" in item_selecionado:
         desc_final = item_selecionado.split("(")[0].strip().replace("💰 ", "").replace("✈️ ", "")
@@ -153,13 +149,13 @@ if submit_button:
         st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([nova_linha])], ignore_index=True)
         save_data(st.session_state.df)
         st.success("Adicionado com sucesso!")
-        st.rerun()
+        st.rerun() # O app recarrega e o novo item já fará parte do menu suspenso automaticamente
     else:
         st.warning("Por favor, preencha o valor e a descrição corretamente.")
 
 st.markdown("---")
 
-# --- EXTRATO MENSAL ---
+# --- EXTRATO MENSAL COM OPÇÃO DE DELETAR ---
 st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
 if not df_mes.empty:
     df_exibicao = df_mes.copy()
@@ -179,37 +175,3 @@ if not df_mes.empty:
             st.rerun()
 else:
     st.info(f"Nenhum lançamento cadastrado para {mes_selecionado}.")
-
-st.markdown("---")
-
-# --- NOVA SEÇÃO: GERENCIADOR DO MENU SUSPENSO ---
-st.markdown("### ⚙️ Personalizar Itens do Menu Suspenso")
-st.caption("Adicione ou remova permanentemente opções da sua lista de validação de dados:")
-
-col_add, col_rem = st.columns(2)
-
-with col_add:
-    st.markdown("#### 📥 Adicionar Novo Item à Lista")
-    novo_item_lista = st.text_input("Nome do novo item (Ex: ACADEMIA, MERCADO):", key="input_novo_item_lista")
-    if st.button("Salvar no Menu", use_container_width=True):
-        if novo_item_lista:
-            item_formatado = novo_item_lista.strip().upper()
-            if item_formatado not in st.session_state.itens_menu:
-                st.session_state.itens_menu.append(item_formatado)
-                salvar_itens_menu(st.session_state.itens_menu)
-                st.success(f"'{item_formatado}' adicionado à lista permanente!")
-                st.rerun()
-            else:
-                st.warning("Este item já existe na lista.")
-        else:
-            st.warning("Digite um nome válido.")
-
-with col_rem:
-    st.markdown("#### 📤 Remover Item Existente da Lista")
-    item_para_remover_lista = st.selectbox("Selecione o item para sumir do menu:", ["-- Selecione --"] + st.session_state.itens_menu, key="select_rem_item_lista")
-    if item_para_remover_lista != "-- Selecione --":
-        if st.button("Excluir do Menu Permanentemente", type="primary", use_container_width=True):
-            st.session_state.itens_menu.remove(item_para_remover_lista)
-            salvar_itens_menu(st.session_state.itens_menu)
-            st.success(f"'{item_para_remover_lista}' removido com sucesso!")
-            st.rerun()
