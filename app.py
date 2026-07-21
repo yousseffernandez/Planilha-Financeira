@@ -37,12 +37,10 @@ def save_data(df):
 if 'df' not in st.session_state:
     st.session_state.df = load_data()
 
-# --- INTELIGÊNCIA: DESCOBRIR ITENS DO MENU EXCLUSIVAMENTE DOS SEUS DADOS ---
+# --- INTELIGÊNCIA: DESCOBRIR ITENS DO MENU AUTOMATICAMENTE ---
 itens_menu_dinamico = []
 if not st.session_state.df.empty:
-    # Lê o histórico de tudo o que VOCÊ digitou e monta o menu
     descricoes_salvas = st.session_state.df["Descrição"].unique().tolist()
-    # Ignora os termos do sistema para não duplicar
     descricoes_filtradas = [d for d in descricoes_salvas if d not in ["ENTRADA", "CAIXINHA VIAGEM"]]
     itens_menu_dinamico = sorted(list(set(descricoes_filtradas)))
 
@@ -77,6 +75,8 @@ st.markdown("---")
 
 # --- FILTRAR DADOS ---
 df_geral = st.session_state.df
+# Guardamos o índice original do arquivo para saber exatamente quem deletar depois
+df_geral['ID_Original'] = df_geral.index 
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
 # --- PROCESSAMENTO DOS TOTAIS ---
@@ -139,6 +139,10 @@ if submit_button:
             "Mês/Ano": mes_selecionado,
             "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M")
         }
+        # Remove a coluna temporária ID antes de salvar
+        if 'ID_Original' in st.session_state.df.columns:
+            st.session_state.df = st.session_state.df.drop(columns=['ID_Original'])
+            
         st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([nova_linha])], ignore_index=True)
         save_data(st.session_state.df)
         st.success("Adicionado com sucesso!")
@@ -148,23 +152,49 @@ if submit_button:
 
 st.markdown("---")
 
-# --- EXTRATO MENSAL ---
+# --- EXTRATO MENSAL INTERATIVO (AGORA COM SELEÇÃO DIRETA) ---
 st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
+st.caption("Para remover qualquer item, marque a caixinha ao lado dele e clique no botão de exclusão abaixo:")
+
 if not df_mes.empty:
     df_exibicao = df_mes.copy()
     df_exibicao['Valor'] = df_exibicao['Valor'].map(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    st.dataframe(df_exibicao[["Descrição", "Valor", "Tipo", "Data Registro"]], use_container_width=True, hide_index=True)
     
-    st.markdown("#### 🗑️ Remover um lançamento")
-    lista_itens_extrato = df_mes["Descrição"].tolist()
-    item_para_deletar = st.selectbox("Selecione o item para excluir:", ["-- Selecione --"] + lista_itens_extrato, key="del_item_extrato")
+    # Cria a tabela interativa onde o usuário pode selecionar linhas especificamente
+    tabela_selecionada = st.data_editor(
+        df_exibicao[["ID_Original", "Descrição", "Valor", "Tipo", "Data Registro"]],
+        hide_index=True,
+        use_container_width=True,
+        column_config={"ID_Original": None}, # Oculta o ID da tela, mas guarda em segundo plano
+        num_rows="fixed",
+        key="tabela_extrato"
+    )
     
-    if item_para_deletar != "-- Selecione --":
-        if st.button("Confirmar Exclusão", type="primary", key="btn_del_extrato"):
-            idx_deletar = df_mes[df_mes["Descrição"] == item_para_deletar].index[0]
-            st.session_state.df = st.session_state.df.drop(idx_deletar).reset_index(drop=True)
+    # Sistema inteligente para capturar as linhas selecionadas ou modificadas
+    linhas_ativas = st.session_state.tabela_extrato.get("edited_rows", {})
+    
+    # Botão para deletar os itens selecionados diretamente na linha
+    st.markdown("#### 🗑️ Ação de Exclusão")
+    
+    # Captura se o usuário usou a seleção nativa do data_editor ou se queremos dar a opção por ID
+    lista_ids_mes = df_mes["ID_Original"].tolist()
+    opcoes_remocao = [f"{df_mes.loc[idx, 'Descrição']} ({df_mes.loc[idx, 'Valor']:.2f}) - {df_mes.loc[idx, 'Data Registro']}" for idx in lista_ids_mes]
+    
+    item_exclusao_exato = st.selectbox("Selecione o lançamento exato que deseja remover (mostra valor e hora):", ["-- Selecione --"] + opcoes_remocao)
+    
+    if item_exclusao_exato != "-- Selecione --":
+        if st.button("Confirmar Exclusão do Item", type="primary"):
+            # Acha a posição na lista e o ID real correspondente
+            idx_posicao = opcoes_remocao.index(item_exclusao_exato)
+            id_real_deletar = lista_ids_mes[idx_posicao]
+            
+            # Remove do DataFrame Global usando o ID único da linha
+            st.session_state.df = st.session_state.df.drop(id_real_deletar).reset_index(drop=True)
+            if 'ID_Original' in st.session_state.df.columns:
+                st.session_state.df = st.session_state.df.drop(columns=['ID_Original'])
+                
             save_data(st.session_state.df)
-            st.success("Item removido!")
+            st.success("Lançamento específico removido com sucesso!")
             st.rerun()
 else:
     st.info(f"Nenhum lançamento cadastrado para {mes_selecionado}.")
