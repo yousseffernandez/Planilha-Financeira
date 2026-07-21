@@ -8,18 +8,27 @@ st.set_page_config(
     page_title="FinançasPro Mensal",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="expanded" # Mantém a barra de meses visível
+    initial_sidebar_state="expanded"
 )
 
 # Nome do arquivo onde os dados serão salvos
 DATA_FILE = "dados_financeiros.csv"
 
-# Função para carregar os dados
+# Função para carregar os dados protegendo contra arquivos antigos
 def load_data():
     if os.path.exists(DATA_FILE):
-        df = pd.read_csv(DATA_FILE)
-        df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce')
-        return df
+        try:
+            df = pd.read_csv(DATA_FILE)
+            # Se o arquivo antigo não tiver a coluna nova, nós criamos ela vazia aqui
+            if "Mês/Ano" not in df.columns:
+                df["Mês/Ano"] = datetime.now().strftime("%B / %Y").capitalize()
+            if "Data Registro" not in df.columns:
+                df["Data Registro"] = datetime.now().strftime("%d/%m/%Y %H:%M")
+                
+            df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce')
+            return df
+        except:
+            pass
     return pd.DataFrame(columns=["Descrição", "Valor", "Tipo", "Mês/Ano", "Data Registro"])
 
 # Função para salvar os dados
@@ -33,21 +42,15 @@ if 'df' not in st.session_state:
 # --- NAVEGAÇÃO ENTRE MESES (AS "ABAS DO EXCEL") ---
 st.sidebar.title("📅 Meses (Abas)")
 
-# Criar lista de meses para seleção rápida
 meses_ano = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ]
-ano_atual = datetime.now().year
+ano_atual = 2026
 
-# Cria uma lista de opções como "Julho / 2026", "Junho / 2026", etc.
 opcoes_meses = [f"{mes} / {ano_atual}" for mes in meses_ano]
+padrao_index = 6  # Padrão em Julho / 2026
 
-# Define o mês atual como padrão na abertura do app
-mes_atual_nome = meses_ano[datetime.now().month - 1]
-padrao_index = opcoes_meses.index(f"{mes_atual_nome} / {ano_atual}")
-
-# Seletor na barra lateral que funciona como as abas
 mes_selecionado = st.sidebar.radio(
     "Selecione o mês para gerenciar:",
     opcoes_meses,
@@ -104,7 +107,7 @@ if submit_button:
             "Descrição": descricao,
             "Valor": valor,
             "Tipo": tipo,
-            "Mês/Ano": mes_selecionado, # Vincula o gasto diretamente ao mês selecionado na aba
+            "Mês/Ano": mes_selecionado,
             "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M")
         }
         st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([nova_linha])], ignore_index=True)
@@ -122,8 +125,6 @@ st.markdown(f"### 📋 Extrato de {mes_selecionado}")
 if not df_mes.empty:
     df_exibicao = df_mes.copy()
     df_exibicao['Valor'] = df_exibicao['Valor'].map(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    
-    # Esconde colunas internas de controle para a visualização ficar limpa
     st.dataframe(df_exibicao[["Descrição", "Valor", "Tipo", "Data Registro"]], use_container_width=True, hide_index=True)
 else:
     st.info(f"Nenhum lançamento cadastrado para {mes_selecionado}.")
