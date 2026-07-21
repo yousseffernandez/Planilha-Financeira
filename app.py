@@ -14,6 +14,25 @@ st.set_page_config(
 # Nome do arquivo onde os dados serão salvos
 DATA_FILE = "dados_financeiros.csv"
 
+# --- SUA LISTA DE VALIDAÇÃO DE DADOS (MENU SUSPENSO DA IMAGEM) ---
+ITENS_MENU_SUSPENSO = [
+    "ÁGUA",
+    "ASSINATURAS",
+    "CASA",
+    "CELULAR MÃE",
+    "CONSULTOR",
+    "FIES",
+    "INTERNET BACKUP",
+    "INTERNET SERCOMT",
+    "LUZ",
+    "MEU CELULAR",
+    "PASSE MÃE",
+    "SEGURO DE VIDA",
+    "💰 ENTRADA (Salário/Pix)",
+    "✈️ CAIXINHA VIAGEM",
+    "➕ OUTRO (Digitar manualmente...)"
+]
+
 # Função para carregar os dados
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -47,33 +66,23 @@ data_hoje = datetime.now()
 ano_atual = data_hoje.year
 mes_atual_nome = meses_ano[data_hoje.month - 1]
 
-# Estado para controlar qual mês está ativo no app (Padrão: Mês Atual)
 if 'mes_ativo' not in st.session_state:
     st.session_state.mes_ativo = f"{mes_atual_nome} / {ano_atual}"
 
-# --- NAVEGAÇÃO NA SIDEBAR (ANOS RECOLHÍVEIS COM SETINHA) ---
+# --- NAVEGAÇÃO NA SIDEBAR (ANOS RECOLHÍVEIS) ---
 st.sidebar.title("📅 Histórico Financeiro")
-st.sidebar.markdown("Escolha o ano e clique no mês:")
-
-# Exibir Ano Passado, Ano Atual e Próximo Ano
 anos_disponiveis = [ano_atual - 1, ano_atual, ano_atual + 1]
 
 for ano in list(reversed(anos_disponiveis)):
-    # Deixa o expansor do ano atual aberto por padrão, os outros começam fechados
     esta_aberto = (ano == ano_atual)
-    
     with st.sidebar.expander(f"📁 Ano {ano}", expanded=esta_aberto):
-        # Cria botões verticais organizados para cada mês
         for mes in meses_ano:
             nome_opcao = f"{mes} / {ano}"
-            # Se for o mês que está selecionado, ganha um destaque visual básico
             label_botao = f"📌 {mes}" if st.session_state.mes_ativo == nome_opcao else mes
-            
             if st.button(label_botao, key=f"btn_{mes}_{ano}", use_container_width=True):
                 st.session_state.mes_ativo = nome_opcao
                 st.rerun()
 
-# Recupera o mês selecionado pelo usuário
 mes_selecionado = st.session_state.mes_ativo
 
 # --- TÍTULO PRINCIPAL ---
@@ -106,24 +115,41 @@ with col4:
 
 st.markdown("---")
 
-# --- FORMULÁRIO DE CADASTRO ---
+# --- FORMULÁRIO COM MENU SUSPENSO (ESTILO EXCEL) ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
+
 with st.form(key='finance_form', clear_on_submit=True):
     col_desc, col_val, col_tipo = st.columns([2, 1, 1.5])
     
     with col_desc:
-        descricao = st.text_input("Descrição", placeholder="Ex: Salário, Aluguel, Internet...")
+        # Menu Suspenso idêntico à Validação de Dados da imagem
+        item_selecionado = st.selectbox("Descrição (Item do Menu Suspenso)", ITENS_MENU_SUSPENSO)
+        # Campo extra que só aparece se o usuário escolher "OUTRO"
+        descricao_manual = ""
+        if item_selecionado == "➕ OUTRO (Digitar manualmente...)":
+            descricao_manual = st.text_input("Digite o nome do gasto personalizado:")
+            
     with col_val:
         valor = st.number_input("Valor (R$)", min_value=0.0, step=0.01, format="%.2f")
+        
     with col_tipo:
-        tipo = st.selectbox("Tipo / Categoria", ["💰 Entrada", "🏠 Gasto Fixo", "🛍️ Gasto Extra", "✈️ Caixinha Viagem"])
+        tipo = st.selectbox("Tipo / Categoria", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem"])
         
     submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
 
 if submit_button:
-    if descricao and valor > 0:
+    # Define a descrição final baseada na escolha
+    if item_selecionado == "➕ OUTRO (Digitar manualmente...)":
+        desc_final = descricao_manual.strip().upper()
+    elif "💰" in item_selecionado or "✈️" in item_selecionado:
+        # Limpa o emoji se selecionar entrada ou caixinha
+        desc_final = item_selecionado.split("(")[0].strip().replace("💰 ", "").replace("✈️ ", "")
+    else:
+        desc_final = item_selecionado
+
+    if desc_final and valor > 0:
         nova_linha = {
-            "Descrição": descricao,
+            "Descrição": desc_final,
             "Valor": valor,
             "Tipo": tipo,
             "Mês/Ano": mes_selecionado,
@@ -131,34 +157,31 @@ if submit_button:
         }
         st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([nova_linha])], ignore_index=True)
         save_data(st.session_state.df)
-        st.success(f"Adicionado com sucesso!")
+        st.success("Adicionado com sucesso!")
         st.rerun()
     else:
-        st.warning("Por favor, preencha a descrição e um valor maior que zero.")
+        st.warning("Por favor, preencha o valor e a descrição corretamente.")
 
 st.markdown("---")
 
-# --- EXTRATO MENSAL COM OPÇÃO DE DELETAR ITEM ---
-st.markdown(f"### 📋 Extrato de {mes_selecionado}")
+# --- EXTRATO MENSAL COM OPÇÃO DE DELETAR ---
+st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
 
 if not df_mes.empty:
-    # Exibe a tabela normal formatada
     df_exibicao = df_mes.copy()
     df_exibicao['Valor'] = df_exibicao['Valor'].map(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     st.dataframe(df_exibicao[["Descrição", "Valor", "Tipo", "Data Registro"]], use_container_width=True, hide_index=True)
     
-    # Caixa para deletar algum item errado
     st.markdown("#### 🗑️ Remover um lançamento")
     lista_itens = df_mes["Descrição"].tolist()
     item_para_deletar = st.selectbox("Selecione o item para excluir:", ["-- Selecione --"] + lista_itens)
     
     if item_para_deletar != "-- Selecione --":
         if st.button("Confirmar Exclusão", type="primary"):
-            # Encontra o índice real no dataframe geral e remove
             idx_deletar = df_mes[df_mes["Descrição"] == item_para_deletar].index[0]
             st.session_state.df = st.session_state.df.drop(idx_deletar).reset_index(drop=True)
             save_data(st.session_state.df)
-            st.success("Item removido com sucesso!")
+            st.success("Item removido!")
             st.rerun()
 else:
     st.info(f"Nenhum lançamento cadastrado para {mes_selecionado}.")
