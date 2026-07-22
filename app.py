@@ -156,7 +156,7 @@ caixinha_total_acumulada = df_geral[
 
 saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
-# --- REORGANIZAÇÃO EM 4 COLUNAS COM DESIGN REFINADO ---
+# --- REORGANIZAÇÃO EM 4 COLUNAS ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 with col1:
@@ -289,6 +289,9 @@ st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
 if not df_mes.empty:
     df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Status", "Data Registro"]].copy()
     
+    # Ordenação alfabética
+    df_visual = df_visual.sort_values(by="Descrição", key=lambda col: col.str.lower(), ascending=True)
+    
     def colorir_linhas(row):
         styles = [''] * len(row)
         if row['Status'] == '⏳ Pendente':
@@ -309,11 +312,12 @@ if not df_mes.empty:
         num_rows="dynamic",
         column_config={
             "index_original": None,
-            "Descrição": st.column_config.TextColumn("Descrição", required=True),
-            "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True),
-            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True),
-            "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True),
-            "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True)
+            # AJUSTE: Aumentamos a largura (width) ou deixamos a Descrição preencher a tela usando "large"
+            "Descrição": st.column_config.TextColumn("Descrição", required=True, width="large"),
+            "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width="medium"),
+            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width="medium"),
+            "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width="medium"),
+            "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width="medium")
         },
         key="editor_extrato"
     )
