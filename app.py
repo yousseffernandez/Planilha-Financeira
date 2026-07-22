@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import os
+import plotly.graph_objects as go
 
 # Configuração da página
 st.set_page_config(
@@ -53,7 +54,7 @@ if 'mes_ativo' not in st.session_state:
 # --- NAVEGAÇÃO NA SIDEBAR ---
 st.sidebar.title("📅 Histórico Financeiro")
 
-anos_disponiveis = [ano_atual - 1, ano_atual]
+anos_disponiveis = [ano_atual - 1, year_atual] if 'year_atual' in locals() else [ano_atual - 1, ano_atual]
 
 for ano in sorted(anos_disponiveis):
     esta_aberto = (ano == ano_atual)
@@ -161,16 +162,13 @@ caixinha_total_acumulada = df_geral[
 
 saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
-# --- NOVA LOGÍSTICA: CÁLCULO DE SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
-# Pega todos os registros do passado até o mês que o usuário está olhando na tela
+# --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
 df_historico_ate_aqui = df_geral[df_geral['Data_Ordem'] <= data_limite_atual]
 
-# Acumulado Nubank (Tudo que já entrou - Tudo que já foi Pago até o mês selecionado)
 entradas_nu_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟣 Nubank')]['Valor'].sum()
 saidas_nu_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] != '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟣 Nubank') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_nu = entradas_nu_acumulado - saidas_nu_acumulado
 
-# Acumulado Banco do Brasil (Tudo que já entrou - Tudo que já foi Pago até o mês selecionado)
 entradas_bb_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil')]['Valor'].sum()
 saidas_bb_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] != '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_bb = entradas_bb_acumulado - saidas_bb_acumulado
@@ -197,7 +195,7 @@ with col_b2:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- REORGANIZAÇÃO EM 4 COLUNAS RESUMO MENSAL ---
+# --- REORGANIZAÇÃO EM 4 COLUNAS ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 with col1:
@@ -247,21 +245,54 @@ with col4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- TERMÔMETRO MENSAL ---
+# --- SEÇÃO INTELIGENTE: SAÚDE FINANCEIRA COM PIZZA INTERATIVA ---
 st.markdown("### 📊 Saúde Financeira")
 if entradas > 0:
     porcentagem_gasta = ((gastos_fixos + gastos_extras) / entradas) * 100
     porcentagem_investida = (investimentos / entradas) * 100
     
-    if porcentagem_gasta <= 60:
-        st.success(f"🟢 **Custo de Vida sob controle:** Seus gastos fixos/extras consomem **{porcentagem_gasta:.1f}%** da renda (dentro da meta ideal de 60%).")
-    else:
-        st.error(f"🔴 **Custo de Vida alto:** Seus custos fixos/extras já comprometeram **{porcentagem_gasta:.1f}%** da sua renda!")
+    col_analise, col_grafico = st.columns([1.2, 1])
+    
+    with col_analise:
+        if porcentagem_gasta <= 60:
+            st.success(f"🟢 **Custo de Vida sob controle:** Seus gastos fixos/extras consomem **{porcentagem_gasta:.1f}%** da renda (dentro da meta ideal de 60%).")
+        else:
+            st.error(f"🔴 **Custo de Vida alto:** Seus custos fixos/extras já comprometeram **{porcentagem_gasta:.1f}%** da sua renda!")
+            
+        st.info(f"📊 **Aporte Patrimonial:** Você separou **{porcentagem_investida:.1f}%** da sua receita para Investimentos neste mês.")
         
-    st.info(f"📊 **Aporte Patrimonial:** Você separou **{porcentagem_investida:.1f}%** da sua receita para Investimentos neste mês.")
-    st.progress(min((gastos_fixos + gastos_extras + investimentos) / entradas, 1.0))
+    with col_grafico:
+        # CONSTRUÇÃO DO GRÁFICO DE PIZZA DINÂMICO
+        labels = ['🏠 Gastos Fixos', '🛍️ Gastos Extras', '📈 Investimentos', '✈️ Caixinha Viagem', '⚖️ Saldo Livre']
+        valores = [gastos_fixos, gastos_extras, investimentos, caixinha_mes_atual, max(0, saldo_livre)]
+        cores = ['#ef4444', '#cbd5e1', '#3b82f6', '#f59e0b', '#10b981']
+        
+        # Filtra categorias zeradas para não poluir a legenda
+        labels_filtrados = [l for l, v in zip(labels, valores) if v > 0]
+        valores_filtrados = [v for v in valores if v > 0]
+        cores_filtradas = [c for c, v in zip(cores, valores) if v > 0]
+        
+        fig = go.Figure(data=[go.Pie(
+            labels=labels_filtrados, 
+            values=valores_filtrados, 
+            hole=.4,
+            marker=dict(colors=cores_filtradas),
+            textinfo='percent+value',
+            texttemplate='%{percent:.1%}<br>R$ %{value:,.2f}',
+            insidetextorientation='radial'
+        )])
+        
+        fig.update_layout(
+            margin=dict(t=10, b=10, l=10, r=10),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            showlegend=True,
+            legend=dict(font=dict(color='#cbd5e1')),
+            height=260
+        )
+        st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("💡 Insira um lançamento do tipo '💰 Entrada' para ativar a análise de saúde do mês.")
+    st.info("💡 Insira um lançamento do tipo '💰 Entrada' para ativar a análise gráfica de saúde do mês.")
 
 st.markdown("---")
 
