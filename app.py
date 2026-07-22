@@ -52,11 +52,12 @@ mes_atual_nome = meses_ano[data_hoje.month - 1]
 if 'mes_ativo' not in st.session_state:
     st.session_state.mes_ativo = f"{mes_atual_nome} / {ano_atual}"
 
-# --- NAVEGAÇÃO NA SIDEBAR ---
+# --- NAVEGAÇÃO NA SIDEBAR (INVERTIDA CRONOLOGICAMENTE) ---
 st.sidebar.title("📅 Histórico Financeiro")
 anos_disponiveis = [ano_atual - 1, ano_atual, ano_atual + 1]
 
-for ano in list(reversed(anos_disponiveis)):
+# Exibe do menor para o maior (mais antigo no topo)
+for ano in sorted(anos_disponiveis):
     esta_aberto = (ano == ano_atual)
     with st.sidebar.expander(f"📁 Ano {ano}", expanded=esta_aberto):
         for mes in meses_ano:
@@ -84,7 +85,6 @@ gastos_extras = df_mes[df_mes['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
 caixinha_viagem = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
 investimentos = df_mes[df_mes['Tipo'] == '📈 Investimentos']['Valor'].sum()
 
-# O que sai de fato ou vai para o patrimônio
 total_saidas = gastos_fixos + gastos_extras + caixinha_viagem + investimentos
 saldo_livre = entradas - total_saidas
 
@@ -148,7 +148,7 @@ else:
 
 st.markdown("---")
 
-# --- FORMULÁRIO COMPACTO CORRIGIDO ---
+# --- FORMULÁRIO COMPACTO 2X2 ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
 opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"]
