@@ -52,9 +52,10 @@ mes_atual_nome = meses_ano[data_hoje.month - 1]
 if 'mes_ativo' not in st.session_state:
     st.session_state.mes_ativo = f"{mes_atual_nome} / {ano_atual}"
 
-# --- NAVEGAÇÃO NA SIDEBAR (INVERTIDA CRONOLOGICAMENTE) ---
+# --- NAVEGAÇÃO NA SIDEBAR (APENAS O PASSADO E O ANO VIGENTE) ---
 st.sidebar.title("📅 Histórico Financeiro")
-anos_disponiveis = [ano_atual - 1, ano_atual, ano_atual + 1]
+# Mudança estratégica: exibe apenas do ano passado até o ano atual. O ano que vem surge sozinho na virada.
+anos_disponiveis = [ano_atual - 1, ano_atual]
 
 # Exibe do menor para o maior (mais antigo no topo)
 for ano in sorted(anos_disponiveis):
