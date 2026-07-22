@@ -31,7 +31,7 @@ def load_data():
             if "Cartão" not in df.columns:
                 df["Cartão"] = "❌ Nenhum (Pix/Débito)"
             
-            # CORREÇÃO CRUCIAL: Se houver a palavra antiga ou curta no banco de dados, converte automaticamente para o texto longo padrão
+            # Padroniza a string antiga do CSV para bater com as opções do menu da tabela
             if not df.empty and "Cartão" in df.columns:
                 df["Cartão"] = df["Cartão"].replace({"❌ Nenhum": "❌ Nenhum (Pix/Débito)"})
                 
@@ -172,6 +172,9 @@ caixinha_total_acumulada = df_geral[
 ]['Valor'].sum()
 
 saldo_livre = entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investimentos)
+
+# CORREÇÃO DO NAMEERROR: Criando o cálculo da variável que faltou na análise de Saúde Financeira
+porcentagem_investida = (investimentos / entradas) * 100 if entradas > 0 else 0.0
 
 # --- SALDOS BANCÁRIOS ACUMULADOS ---
 df_historico_ate_aqui = df_geral[df_geral['Data_Ordem'] <= data_limite_atual]
