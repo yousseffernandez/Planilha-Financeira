@@ -28,11 +28,13 @@ def load_data():
                 df["Status"] = "⏳ Pendente"
             if "Banco" not in df.columns:
                 df["Banco"] = "🟣 Nubank"
+            if "Cartão" not in df.columns:
+                df["Cartão"] = "❌ Nenhum"
             df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0.0)
             return df
         except:
             pass
-    return pd.DataFrame(columns=["Descrição", "Valor", "Tipo", "Mês/Ano", "Data Registro", "Status", "Banco"])
+    return pd.DataFrame(columns=["Descrição", "Valor", "Tipo", "Mês/Ano", "Data Registro", "Status", "Banco", "Cartão"])
 
 # Função para salvar os dados
 def save_data(df):
@@ -132,7 +134,8 @@ if df_mes_verificacao.empty and not st.session_state.df.empty:
                 "Mês/Ano": mes_selecionado,
                 "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
                 "Status": "⏳ Pendente",
-                "Banco": df_fixos_anterior["Banco"] if "Banco" in df_fixos_anterior.columns else "🟣 Nubank"
+                "Banco": df_fixos_anterior["Banco"] if "Banco" in df_fixos_anterior.columns else "🟣 Nubank",
+                "Cartão": df_fixos_anterior["Cartão"] if "Cartão" in df_fixos_anterior.columns else "❌ Nenhum"
             })
             st.session_state.df = pd.concat([st.session_state.df, novos_fixos], ignore_index=True)
             save_data(st.session_state.df)
@@ -145,6 +148,8 @@ if "Status" not in df_geral.columns:
     df_geral["Status"] = "⏳ Pendente"
 if "Banco" not in df_geral.columns:
     df_geral["Banco"] = "🟣 Nubank"
+if "Cartão" not in df_geral.columns:
+    df_geral["Cartão"] = "❌ Nenhum"
 df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
@@ -211,7 +216,7 @@ with col_b2:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- REORGANIZAÇÃO EM 4 COLUNAS (ALTURA EQUILIBRADA A 135PX) ---
+# --- REORGANIZAÇÃO EM 4 COLUNAS ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 with col1:
@@ -299,7 +304,7 @@ with col_analise:
         )
     else:
         st.markdown(
-            """<div style="border: 1px solid #3b82f6; border-left: 5px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;">
+            """<div style="border: 1px solid #3b82f6; border-left: 3px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;">
                 <span style="font-size: 15px; color: #cbd5e1;">💡 Insira um lançamento do tipo '💰 Entrada' para ativar a análise gráfica de saúde do mês.</span>
             </div>""", unsafe_allow_html=True
         )
@@ -324,13 +329,12 @@ with col_grafico:
         fig = go.Figure(data=[go.Pie(
             labels=labels_filtrados, 
             values=valores_filtrados, 
-            hole=.55, # Aumentado levemente o furo para caber o texto
+            hole=.55,
             marker=dict(colors=cores_filtradas),
             textinfo='none',  
             hovertemplate='<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>'
         )])
         
-        # MELHORIA VISUAL: Inserindo o Saldo Livre formatado no centro da rosca
         fig.update_layout(
             margin=dict(t=15, b=15, l=15, r=15),
             paper_bgcolor='rgba(0,0,0,0)',
@@ -352,12 +356,11 @@ with col_grafico:
 
 st.markdown("---")
 
-# --- FORMULÁRIO COMPACTO COM MELHORIA DE BORDA ---
+# --- FORMULÁRIO COMPACTO ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
 opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "🚨 RETIRADA RESERVA", "🟢 REPOSIÇÃO RESERVA", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"]
 
-# CSS Injetado para dar um tapa sutil no visual dos inputs do formulário do Streamlit
 st.markdown(
     """
     <style>
@@ -376,13 +379,16 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l1_b:
         descricao_manual = st.text_input("Ou digite um item novo:", placeholder="Ex: NETFLIX, ACADEMIA, SPOTIFY...")
         
-    col_l2_a, col_l2_b, col_l2_c = st.columns(3)
+    col_l2_a, col_l2_b, col_l2_c, col_l2_d = st.columns(4)
     with col_l2_a:
         valor_texto = st.text_input("Valor do Lançamento (R$):", placeholder="0,00")
     with col_l2_b:
         tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
     with col_l2_c:
         banco_movimentado = st.selectbox("Banco Origem/Destino:", ["🟣 Nubank", "🟡 Banco do Brasil"])
+    with col_l2_d:
+        # NOVA COLUNA NO FORMULÁRIO: Mapeia em qual cartão a despesa foi feita
+        cartao_usado = st.selectbox("Cartão Utilizado:", ["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"])
         
     st.markdown("<br>", unsafe_allow_html=True)
     submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
@@ -415,7 +421,8 @@ if submit_button:
             "Mês/Ano": mes_selecionado,
             "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
             "Status": status_inicial,
-            "Banco": banco_movimentado
+            "Banco": banco_movimentado,
+            "Cartão": cartao_usado
         }
         df_atual = load_data()
         st.session_state.df = pd.concat([df_atual, pd.DataFrame([nova_linha])], ignore_index=True)
@@ -431,7 +438,7 @@ st.markdown("---")
 st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
 
 if not df_mes.empty:
-    df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Status", "Banco", "Data Registro"]].copy()
+    df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Cartão", "Status", "Banco", "Data Registro"]].copy()
     df_visual = df_visual.sort_values(by="Descrição", key=lambda col: col.str.lower(), ascending=True)
     df_visual = df_visual.reset_index(drop=True)
     
@@ -467,12 +474,14 @@ if not df_mes.empty:
         num_rows="dynamic",
         column_config={
             "index_original": None,
-            "Descrição": st.column_config.TextColumn("Descrição", required=True, width=3),
+            "Descrição": st.column_config.TextColumn("Descrição", required=True, width=2.5),
             "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
-            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=2),
-            "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1.5),
-            "Banco": st.column_config.SelectboxColumn("Banco", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=2),
-            "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=2)
+            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
+            # NOVA COLUNA NO EXTRATO: Mapeia de forma interativa os 3 cartões nas linhas da tabela
+            "Cartão": st.column_config.SelectboxColumn("Cartão", options=["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"], required=True, width=1.5),
+            "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1),
+            "Banco": st.column_config.SelectboxColumn("Banco", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=1.5),
+            "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=1.5)
         },
         key="editor_extrato"
     )
