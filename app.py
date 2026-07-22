@@ -154,7 +154,6 @@ caixinha_total_acumulada = df_geral[
     (df_geral['Data_Ordem'] <= data_limite_atual)
 ]['Valor'].sum()
 
-total_saidas = gastos_fixos + gastos_extras + caixinha_mes_atual + investments = investimentos
 saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
 # --- REORGANIZAÇÃO EM 4 COLUNAS EQUILIBRADAS ---
@@ -263,11 +262,13 @@ if submit_button:
         nova_linha = {
             "Descrição": desc_final,
             "Valor": valor_final,
-            "Tipo": tipo,
+            "Tipo": type(tipo) == str and tipo or "",
             "Mês/Ano": mes_selecionado,
             "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
             "Status": status_inicial
         }
+        # Correção direta para manter a coluna certa
+        nova_linha["Tipo"] = tipo
         df_atual = load_data()
         st.session_state.df = pd.concat([df_atual, pd.DataFrame([nova_linha])], ignore_index=True)
         save_data(st.session_state.df)
