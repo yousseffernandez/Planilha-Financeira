@@ -31,6 +31,7 @@ def load_data():
             if "Cartão" not in df.columns:
                 df["Cartão"] = "⚡ Pix"
             
+            # Limpa e converte os registros antigos com bolinhas para o novo padrão de cartão (💳) nesta coluna
             if not df.empty and "Cartão" in df.columns:
                 df["Cartão"] = df["Cartão"].fillna("⚡ Pix").replace({
                     "❌ Nenhum": "⚡ Pix", 
@@ -181,7 +182,7 @@ investimentos = df_mes[df_mes['Tipo'].isin(['📈 Investimentos', '🟢 Reposiç
 
 caixinha_total_acumulada = df_geral[(df_geral['Tipo'] == '✈️ Caixinha Viagem') & (df_geral['Data_Ordem'] <= data_limite_atual)]['Valor'].sum()
 
-# MATEMÁTICA AUTOMATIZADA: Saldo livre agora inclui a sobra herdada do passado
+# Saldo livre inclui a sobra herdada do passado
 saldo_livre = sobra_mes_anterior + entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investimentos)
 porcentagem_investida = (investimentos / entradas) * 100 if entradas > 0 else 0.0
 
@@ -198,28 +199,21 @@ entradas_bb = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 E
 saidas_bb = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_bb = entradas_bb - saidas_bb
 
-# Caixa Econômica
-entradas_cx = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🔵 Caixa Econômica')]['Valor'].sum()
-saidas_cx = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🔵 Caixa Econômica') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
-saldo_cx = entradas_cx - saidas_cx
-
 retiradas_reserva = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '🚨 Retirada Reserva') | ((df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False)))]['Valor'].sum()
 reposicoes_reserva = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '🟢 Reposição Reserva') | ((df_historico_ate_aqui['Tipo'] == '📈 Investimentos') & (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False)))]['Valor'].sum()
 deficit_reserva = retiradas_reserva - reposicoes_reserva
 
-# --- LAYOUT SUPERIOR: SALDOS BANCÁRIOS ---
+# --- LAYOUT SUPERIOR: DOIS BANCOS PRINCIPAIS CORRIGIDO PARA 2 COLUNAS DE VERDADE ---
 st.markdown("### 🏦 Saldos Disponíveis nos Bancos")
-col_b1, col_b2, col_b3 = st.columns(3)
+col_b1, col_b2 = st.columns(2)
 with col_b1:
     st.markdown(f"""<div style="border: 1px solid #8a05be; border-left: 6px solid #8a05be; background-color: #0f172a; padding: 15px; border-radius: 12px; text-align: center;"><span style="color: #94a3b8; font-size: 14px; font-weight: bold; letter-spacing: 0.5px;">🟣 SALDO NUBANK</span><br><span style="color: #8a05be; font-size: 26px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_nu:,.2f}</span></div>""", unsafe_allow_html=True)
 with col_b2:
     st.markdown(f"""<div style="border: 1px solid #facc15; border-left: 6px solid #facc15; background-color: #0f172a; padding: 15px; border-radius: 12px; text-align: center;"><span style="color: #94a3b8; font-size: 14px; font-weight: bold; letter-spacing: 0.5px;">🟡 SALDO BANCO DO BRASIL</span><br><span style="color: #facc15; font-size: 26px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_bb:,.2f}</span></div>""", unsafe_allow_html=True)
-with col_b3:
-    st.markdown(f"""<div style="border: 1px solid #2563eb; border-left: 6px solid #2563eb; background-color: #0f172a; padding: 15px; border-radius: 12px; text-align: center;"><span style="color: #94a3b8; font-size: 14px; font-weight: bold; letter-spacing: 0.5px;">🔵 SALDO CAIXA ECONÔMICA</span><br><span style="color: #2563eb; font-size: 26px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_cx:,.2f}</span></div>""", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- REORGANIZAÇÃO DOS CARDS INFERIORES COM INCLUSÃO DA SOBRA PASSADA ---
+# --- CARDS INFERIORES ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 with col1:
     cor_saldo_texto = "#10b981" if saldo_livre >= 0 else "#ef4444"
