@@ -266,7 +266,6 @@ if entradas > 0:
         valores = [gastos_fixos, gastos_extras, investimentos, caixinha_mes_atual, max(0, saldo_livre)]
         cores = ['#ef4444', '#cbd5e1', '#3b82f6', '#f59e0b', '#10b981']
         
-        # Filtragem de valores maiores que zero
         labels_filtrados = []
         valores_filtrados = []
         cores_filtradas = []
@@ -274,7 +273,6 @@ if entradas > 0:
         for l, v, c in zip(raw_labels, valores, cores):
             if v > 0:
                 pct = (v / entradas) * 100
-                # AJUSTE DA LEGENDA: Adiciona a porcentagem de forma legível logo após o nome do item
                 labels_filtrados.append(f"{l} ({pct:.1f}%)")
                 valores_filtrados.append(v)
                 cores_filtradas.append(c)
@@ -285,7 +283,7 @@ if entradas > 0:
             hole=.4,
             marker=dict(colors=cores_filtradas),
             textinfo='none',  
-            hovertemplate='<b>% {label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>'
+            hovertemplate='<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>'
         )])
         
         fig.update_layout(
@@ -293,8 +291,11 @@ if entradas > 0:
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             showlegend=True,
-            legend=dict(font=dict(color='#cbd5e1')),
-            height=260
+            # MODIFICAÇÃO: Aumentada a fonte da legenda para 16px para ficar bem visível
+            legend=dict(
+                font=dict(color='#cbd5e1', size=16)
+            ),
+            height=300 # Aumentado um pouco a altura para acomodar a legenda maior confortavelmente
         )
         st.plotly_chart(fig, use_container_width=True)
 else:
