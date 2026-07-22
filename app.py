@@ -111,7 +111,6 @@ data_limite_atual = converter_mes_ano_para_data(mes_selecionado)
 
 df_mes_verificacao = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
-# CORREÇÃO DA LINHA 114: Removido o 'smash' e colocado o 'and' correto
 if df_mes_verificacao.empty and not st.session_state.df.empty:
     meses_com_dados = df_geral.dropna(subset=['Mês/Ano'])
     if not meses_com_dados.empty:
@@ -307,19 +306,26 @@ if not df_mes.empty:
                 styles = ['background-color: #1e3a8a; color: #60a5fa; font-weight: bold;'] * len(row)
         return styles
 
-    # FORÇANDO CENTRALIZAÇÃO VISUAL GLOBAL
+    # FORÇANDO CENTRALIZAÇÃO COMPLETA DAS CÉLULAS E CABEÇALHOS VIA CSS INJETADO
     st.markdown(
         """
         <style>
+            /* Centraliza os textos de todas as células da tabela do data_editor */
             div[data-testid="stDataEditor"] div div div div div div div div div {
                 text-align: center !important;
                 justify-content: center !important;
+            }
+            /* Centraliza os textos dos cabeçalhos das colunas */
+            .ag-header-cell-label {
+                justify-content: center !important;
+                text-align: center !important;
             }
         </style>
         """,
         unsafe_allow_html=True
     )
 
+    # AJUSTE DA LARGURA: Usamos pesos proporcionais (3, 1.5, 2, 1.5, 2) que fazem a tabela esticar 100% no meio de forma elástica
     tabela_editada = st.data_editor(
         df_visual.style.apply(colorir_linhas, axis=1),
         hide_index=True,
@@ -327,11 +333,11 @@ if not df_mes.empty:
         num_rows="dynamic",
         column_config={
             "index_original": None,
-            "Descrição": st.column_config.TextColumn("Descrição", required=True, width="large"),
-            "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width="medium", alignment="center"),
-            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width="medium"),
-            "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width="medium"),
-            "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width="medium")
+            "Descrição": st.column_config.TextColumn("Descrição", required=True, width=3),
+            "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5),
+            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=2),
+            "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1.5),
+            "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=2)
         },
         key="editor_extrato"
     )
