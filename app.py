@@ -138,7 +138,7 @@ if df_mes_verificacao.empty and not st.session_state.df.empty:
             save_data(st.session_state.df)
             st.rerun()
 
-# Re-atualiza os filtros após processamento
+# Atualiza os filtros após processamento
 df_geral = st.session_state.df.copy()
 df_geral['index_original'] = df_geral.index
 if "Status" not in df_geral.columns:
@@ -160,6 +160,7 @@ caixinha_total_acumulada = df_geral[
     (df_geral['Data_Ordem'] <= data_limite_atual)
 ]['Valor'].sum()
 
+# CORRIGIDO DEFINITIVAMENTE: Mudado de investments para investimentos
 saldo_livre = entradas - (gastos_fixos_totais + gastos_extras + caixinha_mes_atual + investimentos)
 
 # --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
