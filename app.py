@@ -29,7 +29,12 @@ def load_data():
             if "Banco" not in df.columns:
                 df["Banco"] = "🟣 Nubank"
             if "Cartão" not in df.columns:
-                df["Cartão"] = "❌ Nenhum"
+                df["Cartão"] = "❌ Nenhum (Pix/Débito)"
+            
+            # CORREÇÃO CRUCIAL: Se houver a palavra antiga ou curta no banco de dados, converte automaticamente para o texto longo padrão
+            if not df.empty and "Cartão" in df.columns:
+                df["Cartão"] = df["Cartão"].replace({"❌ Nenhum": "❌ Nenhum (Pix/Débito)"})
+                
             df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0.0)
             return df
         except:
@@ -135,7 +140,7 @@ if df_mes_verificacao.empty and not st.session_state.df.empty:
                 "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
                 "Status": "⏳ Pendente",
                 "Banco": df_fixos_anterior["Banco"] if "Banco" in df_fixos_anterior.columns else "🟣 Nubank",
-                "Cartão": df_fixos_anterior["Cartão"] if "Cartão" in df_fixos_anterior.columns else "❌ Nenhum"
+                "Cartão": df_fixos_anterior["Cartão"] if "Cartão" in df_fixos_anterior.columns else "❌ Nenhum (Pix/Débito)"
             })
             st.session_state.df = pd.concat([st.session_state.df, novos_fixos], ignore_index=True)
             save_data(st.session_state.df)
@@ -149,7 +154,7 @@ if "Status" not in df_geral.columns:
 if "Banco" not in df_geral.columns:
     df_geral["Banco"] = "🟣 Nubank"
 if "Cartão" not in df_geral.columns:
-    df_geral["Cartão"] = "❌ Nenhum"
+    df_geral["Cartão"] = "❌ Nenhum (Pix/Débito)"
 df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
@@ -204,7 +209,7 @@ with col4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- SAÚDE FINANCEIRA & ROBO DE GRÁFICO ---
+# --- SAÚDE FINANCEIRA ---
 st.markdown("### 📊 Saúde Financeira")
 col_analise, col_grafico = st.columns([1.2, 1])
 with col_analise:
@@ -216,6 +221,7 @@ with col_analise:
             st.markdown(f"""<div style="border: 1px solid #10b981; border-left: 5px solid #10b981; background-color: #0f172a; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;"><span style="font-size: 15px; color: #cbd5e1;">🟢 <b>Custo de Vida sob controle:</b> Seus custos consomem <b>{porcentagem_gasta:.1f}%</b> da renda.</span></div>""", unsafe_allow_html=True)
         else:
             st.markdown(f"""<div style="border: 1px solid #ef4444; border-left: 5px solid #ef4444; background-color: #0f172a; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;"><span style="font-size: 15px; color: #cbd5e1;">🔴 <b>Custo de Vida alto:</b> Comprometido <b>{porcentagem_gasta:.1f}%</b> da renda!</span></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="border: 1px solid #3b82f6; border-left: 3px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;"><span style="font-size: 15px; color: #cbd5e1;">📊 <b>Aporte Patrimonial:</b> Você separou <b>{porcentagem_investida:.1f}%</b> da sua receita para Investimentos neste mês.</span></div>""", unsafe_allow_html=True)
     else:
         st.markdown("""<div style="border: 1px solid #3b82f6; border-left: 3px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;"><span style="font-size: 15px; color: #cbd5e1;">💡 Insira uma Entrada para ativar os gráficos.</span></div>""", unsafe_allow_html=True)
 with col_grafico:
@@ -228,7 +234,7 @@ with col_grafico:
 
 st.markdown("---")
 
-# --- AREA COMPACTA INTERATIVA (FRAGMENTADA) ---
+# --- INTERACTIVE AREA (FRAGMENT) ---
 @st.fragment
 def render_interactive_area():
     st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
@@ -274,7 +280,9 @@ def render_interactive_area():
             st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([nova_linha])], ignore_index=True)
             save_data(st.session_state.df)
             st.success("Adicionado!")
-            st.rerun() # Rerun interno do fragmento limpa o form e fixa o scroll!
+            st.rerun()
+        else:
+            st.warning("Por favor, preencha a descrição e insira um valor válido.")
 
     st.markdown("---")
     st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
@@ -287,7 +295,6 @@ def render_interactive_area():
         df_visual = df_mes_fragment[["index_original", "Descrição", "Valor", "Tipo", "Cartão", "Status", "Banco", "Data Registro"]].copy()
         df_visual = df_visual.sort_values(by="Descrição", key=lambda col: col.str.lower(), ascending=True).reset_index(drop=True)
         
-        # REMOVIDO RERUN DAS EDICOES DIRETAS: Agora o scroll fica travado no lugar!
         tabela_editada = st.data_editor(
             df_visual,
             hide_index=True,
@@ -306,7 +313,6 @@ def render_interactive_area():
             key="editor_extrato"
         )
         
-        # Processa exclusões
         if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("deleted_rows"):
             indices_deletados = st.session_state.editor_extrato["deleted_rows"]
             reais_deletar = [df_visual.iloc[idx]['index_original'] for idx in indices_deletados]
@@ -314,7 +320,6 @@ def render_interactive_area():
             save_data(st.session_state.df)
             st.rerun()
             
-        # Processa edições salvando silenciosamente na memória local
         if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("edited_rows"):
             alteracoes = st.session_state.editor_extrato["edited_rows"]
             for idx_tela, colunas in alteracoes.items():
