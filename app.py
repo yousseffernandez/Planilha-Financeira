@@ -184,36 +184,66 @@ entradas_bb = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 E
 saidas_bb = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_bb = entradas_bb - saidas_bb
 
-# Caixa Econômica
-entradas_cx = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🔵 Caixa Econômica')]['Valor'].sum()
-saidas_cx = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🔵 Caixa Econômica') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
-saldo_cx = entradas_cx - saidas_cx
-
 retiradas_reserva = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '🚨 Retirada Reserva') | ((df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False)))]['Valor'].sum()
 reposicoes_reserva = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '🟢 Reposição Reserva') | ((df_historico_ate_aqui['Tipo'] == '📈 Investimentos') & (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False)))]['Valor'].sum()
 deficit_reserva = retiradas_reserva - reposicoes_reserva
 
-# --- LAYOUT SUPERIOR: SALDOS BANCÁRIOS ---
+# --- LAYOUT SUPERIOR: DOIS BANCOS PRINCIPAIS (FACHADA LIMPA) ---
 st.markdown("### 🏦 Saldos Disponíveis nos Bancos")
-col_b1, col_b2, col_b3 = st.columns(3)
+col_b1, col_b2 = st.columns(2)
 with col_b1:
-    st.markdown(f"""<div style="border: 1px solid #8a05be; border-left: 6px solid #8a05be; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; text-align: center;"><span style="color: #94a3b8; font-size: 13px; font-weight: bold;">🟣 SALDO NUBANK</span><br><span style="color: #8a05be; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_nu:,.2f}</span></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div style="border: 1px solid #8a05be; border-left: 6px solid #8a05be; background-color: #0f172a; padding: 15px; border-radius: 12px; text-align: center;"><span style="color: #94a3b8; font-size: 14px; font-weight: bold; letter-spacing: 0.5px;">🟣 SALDO NUBANK</span><br><span style="color: #8a05be; font-size: 26px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_nu:,.2f}</span></div>""", unsafe_allow_html=True)
 with col_b2:
-    st.markdown(f"""<div style="border: 1px solid #facc15; border-left: 6px solid #facc15; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; text-align: center;"><span style="color: #94a3b8; font-size: 13px; font-weight: bold;">🟡 SALDO BANCO DO BRASIL</span><br><span style="color: #facc15; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_bb:,.2f}</span></div>""", unsafe_allow_html=True)
-with col_b3:
-    st.markdown(f"""<div style="border: 1px solid #2563eb; border-left: 6px solid #2563eb; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; text-align: center;"><span style="color: #94a3b8; font-size: 13px; font-weight: bold;">🔵 SALDO CAIXA ECONÔMICA</span><br><span style="color: #2563eb; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_cx:,.2f}</span></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div style="border: 1px solid #facc15; border-left: 6px solid #facc15; background-color: #0f172a; padding: 15px; border-radius: 12px; text-align: center;"><span style="color: #94a3b8; font-size: 14px; font-weight: bold; letter-spacing: 0.5px;">🟡 SALDO BANCO DO BRASIL</span><br><span style="color: #facc15; font-size: 26px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_bb:,.2f}</span></div>""", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
+
+# --- REORGANIZAÇÃO COMPLETA DOS CARDS INFERIORES (MAIS ESPAÇO E SIMETRIA) ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 with col1:
     cor_saldo_texto = "#10b981" if saldo_livre >= 0 else "#ef4444"
-    st.markdown(f"""<div style="border: 1px solid #10b981; border-left: 6px solid #10b981; background-color: #0f172a; padding: 10px 15px; border-radius: 12px; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between;"><span style="color: #94a3b8; font-size: 13px; font-weight: bold;">💰 ENTRADAS & SALDO</span><div><span style="color: #10b981; font-size: 17px; font-weight: 700;">💰 Receita: R$ {entradas:,.2f}</span><div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 3px 0;"></div><span style="color: {cor_saldo_texto}; font-size: 17px; font-weight: 700;">⚖️ Livre: R$ {saldo_livre:,.2f}</span></div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""
+        <div style="border: 1px solid #10b981; border-left: 6px solid #10b981; background-color: #0f172a; padding: 15px; border-radius: 12px; min-height: 145px; display: flex; flex-direction: column; justify-content: space-between;">
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">💰 ENTRADAS & SALDO</span>
+            <div style="margin-top: 5px;">
+                <span style="color: #10b981; font-size: 16px; font-weight: 700; display: block; margin-bottom: 4px;">💰 Receita: R$ {entradas:,.2f}</span>
+                <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 6px 0;"></div>
+                <span style="color: {cor_saldo_texto}; font-size: 16px; font-weight: 700; display: block; margin-top: 4px;">⚖️ Livre: R$ {saldo_livre:,.2f}</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
 with col2:
-    st.markdown(f"""<div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 10px 15px; border-radius: 12px; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between;"><span style="color: #94a3b8; font-size: 13px; font-weight: bold;">📊 GASTOS MENSAIS</span><div><span style="color: #ef4444; font-size: 14px; font-weight: 700;">🏠 Fixos: R$ {gastos_fixos:,.2f}</span><br><span style="color: #f43f5e; font-size: 14px; font-weight: 700;">💳 Cartão: R$ {gastos_cartao:,.2f}</span><div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 2px 0;"></div><span style="color: #cbd5e1; font-size: 14px; font-weight: 700;">🛍️ Extras: R$ {gastos_extras:,.2f}</span></div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""
+        <div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 15px; border-radius: 12px; min-height: 145px; display: flex; flex-direction: column; justify-content: space-between;">
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📊 GASTOS MENSAIS</span>
+            <div style="margin-top: 5px;">
+                <span style="color: #ef4444; font-size: 15px; font-weight: 700; display: block; margin-bottom: 4px;">🏠 Fixos: R$ {gastos_fixos + gastos_cartao:,.2f}</span>
+                <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 6px 0;"></div>
+                <span style="color: #cbd5e1; font-size: 15px; font-weight: 700; display: block; margin-top: 4px;">🛍️ Extras: R$ {gastos_extras:,.2f}</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
 with col3:
-    st.markdown(f"""<div style="border: 1px solid #3b82f6; border-left: 6px solid #3b82f6; background-color: #0f172a; padding: 10px 15px; border-radius: 12px; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between;"><span style="color: #94a3b8; font-size: 13px; font-weight: bold;">📈 INVESTIMENTOS</span><div style="margin-top: 8px;"><span style="color: #3b82f6; font-size: 24px; font-weight: 800;">R$ {investimentos:,.2f}</span></div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""
+        <div style="border: 1px solid #3b82f6; border-left: 6px solid #3b82f6; background-color: #0f172a; padding: 15px; border-radius: 12px; min-height: 145px; display: flex; flex-direction: column; justify-content: space-between;">
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📈 INVESTIMENTOS</span>
+            <div style="margin-top: 15px; text-align: left;">
+                <span style="color: #3b82f6; font-size: 24px; font-weight: 800; display: block;">R$ {investimentos:,.2f}</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
 with col4:
-    st.markdown(f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 10px 15px; border-radius: 12px; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between;"><span style="color: #94a3b8; font-size: 13px; font-weight: bold;">✈️ CAIXINHA VIAGEM</span><div style="margin-top: 8px;"><span style="color: #f59e0b; font-size: 24px; font-weight: 800;">R$ {caixinha_total_acumulada:,.2f}</span></div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""
+        <div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 15px; border-radius: 12px; min-height: 145px; display: flex; flex-direction: column; justify-content: space-between;">
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">✈️ CAIXINHA VIAGEM</span>
+            <div style="margin-top: 15px; text-align: left;">
+                <span style="color: #f59e0b; font-size: 24px; font-weight: 800; display: block;">R$ {caixinha_total_acumulada:,.2f}</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -234,9 +264,7 @@ with col_analise:
         st.markdown("""<div style="border: 1px solid #3b82f6; border-left: 3px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;"><span style="font-size: 15px; color: #cbd5e1;">💡 Insira uma Entrada para ativar os gráficos.</span></div>""", unsafe_allow_html=True)
 with col_grafico:
     if entradas > 0:
-        # CORREGIDO: Reduzido milimetricamente para exibir apenas Fixo, Extra e Livre conforme solicitado
         raw_labels = ['🏠 Gastos Fixos', '🛍️ Gastos Extras', '⚖️ Saldo Livre']
-        # Somamos o valor de caixinha, cartão e investimentos ao custo fixo/extra conforme o comportamento padrão do seu saldo
         valores_pizza = [gastos_fixos + gastos_cartao, gastos_extras, max(0, saldo_livre)]
         
         fig = go.Figure(data=[go.Pie(
@@ -273,7 +301,8 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l2_b:
         tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
     with col_l2_c:
-        banco_movimentado = st.selectbox("Opção de Pagamento:", ["🟣 Nubank", "🟡 Banco do Brasil", "🔵 Caixa Econômica"])
+        # Removido caixa das opções do formulário
+        banco_movimentado = st.selectbox("Opção de Pagamento:", ["🟣 Nubank", "🟡 Banco do Brasil"])
     with col_l2_d:
         cartao_usado = st.selectbox("Cartão / Forma de Movimentação:", ["⚡ Pix", "📄 Boleto", "🔄 Débito Automático", "💳 Nubank", "💳 Banco do Brasil", "💳 Mercado Pago"])
         
@@ -324,7 +353,8 @@ if not df_mes.empty:
             "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
             "Cartão": st.column_config.SelectboxColumn("Cartão / Canal", options=["⚡ Pix", "📄 Boleto", "🔄 Débito Automático", "💳 Nubank", "💳 Banco do Brasil", "💳 Mercado Pago"], required=True, width=1.5),
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1),
-            "Banco": st.column_config.SelectboxColumn("Opção de Pagamento", options=["🟣 Nubank", "🟡 Banco do Brasil", "🔵 Caixa Econômica"], required=True, width=1.5),
+            # Removido caixa da tabela do extrato
+            "Banco": st.column_config.SelectboxColumn("Opção de Pagamento", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=1.5),
             "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=1.5)
         },
         key="editor_extrato"
