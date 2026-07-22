@@ -165,7 +165,7 @@ caixinha_total_acumulada = df_geral[
     (df_geral['Data_Ordem'] <= data_limite_atual)
 ]['Valor'].sum()
 
-# CORRIGIDO: Agora aponta exatamente para a variável "investimentos" em português
+# CORRIGIDO: Variável mudada de investments para investimentos
 saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
 # --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
