@@ -111,7 +111,7 @@ data_limite_atual = converter_mes_ano_para_data(mes_selecionado)
 
 df_mes_verificacao = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
-if df_mes_verificacao.empty and not st.session_state.df.empty:
+if df_mes_verificacao.empty smash not st.session_state.df.empty:
     meses_com_dados = df_geral.dropna(subset=['Mês/Ano'])
     if not meses_com_dados.empty:
         ultimo_mes_com_registro = meses_com_dados.sort_values(by='Data_Ordem', ascending=False).iloc[0]['Mês/Ano']
@@ -306,7 +306,7 @@ if not df_mes.empty:
                 styles = ['background-color: #1e3a8a; color: #60a5fa; font-weight: bold;'] * len(row)
         return styles
 
-    # FORÇANDO CENTRALIZAÇÃO VIA INJEÇÃO DE CSS GLOBAL NA PÁGINA
+    # FORÇANDO CENTRALIZAÇÃO VISUAL GLOBAL
     st.markdown(
         """
         <style>
@@ -319,6 +319,7 @@ if not df_mes.empty:
         unsafe_allow_html=True
     )
 
+    # REMOVIDO: O 'alignment="center"' que quebrava nas colunas incompatíveis
     tabela_editada = st.data_editor(
         df_visual.style.apply(colorir_linhas, axis=1),
         hide_index=True,
@@ -326,11 +327,11 @@ if not df_mes.empty:
         num_rows="dynamic",
         column_config={
             "index_original": None,
-            "Descrição": st.column_config.TextColumn("Descrição", required=True, width="large", alignment="center"),
+            "Descrição": st.column_config.TextColumn("Descrição", required=True, width="large"),
             "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width="medium", alignment="center"),
-            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width="medium", alignment="center"),
-            "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width="medium", alignment="center"),
-            "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width="medium", alignment="center")
+            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width="medium"),
+            "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width="medium"),
+            "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width="medium")
         },
         key="editor_extrato"
     )
