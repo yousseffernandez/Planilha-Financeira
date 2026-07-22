@@ -116,6 +116,7 @@ def converter_mes_ano_para_data(string_mes_ano):
     except:
         return datetime(2000, 1, 1)
 
+# CORREÇÃO CRUCIAL AQUI: Criamos as colunas de ordem ANTES de rodar qualquer totalizador ou automação
 df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 data_limite_atual = converter_mes_ano_para_data(mes_selecionado)
 
@@ -146,11 +147,13 @@ if df_mes_verificacao.empty and not st.session_state.df.empty:
             save_data(st.session_state.df)
             st.rerun()
 
-# Filtros e Totais principais
+# Atualiza filtros e índices reais após processamentos internos
 df_geral = st.session_state.df.copy()
 df_geral['index_original'] = df_geral.index
+df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
+# --- PROCESSAMENTO DOS TOTAIS ---
 entradas = df_mes[df_mes['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])]['Valor'].sum()
 gastos_fixos = df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
 gastos_cartao = df_mes[df_mes['Tipo'] == '💳 Cartão de Crédito']['Valor'].sum()
@@ -159,9 +162,10 @@ caixinha_mes_atual = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor']
 investimentos = df_mes[df_mes['Tipo'].isin(['📈 Investimentos', '🟢 Reposição Reserva'])]['Valor'].sum()
 
 caixinha_total_acumulada = df_geral[(df_geral['Tipo'] == '✈️ Caixinha Viagem') & (df_geral['Data_Ordem'] <= data_limite_atual)]['Valor'].sum()
-saldo_livre = entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investimentos)
+saldo_livre = entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investments_sum if 'investments_sum' in locals() else investimentos)
 porcentagem_investida = (investimentos / entradas) * 100 if entradas > 0 else 0.0
 
+# --- SALDOS BANCÁRIOS ACUMULADOS ---
 df_historico_ate_aqui = df_geral[df_geral['Data_Ordem'] <= data_limite_atual]
 entradas_nu = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟣 Nubank')]['Valor'].sum()
 saidas_nu = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟣 Nubank') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
@@ -270,7 +274,7 @@ if submit_button:
 
 st.markdown("---")
 
-# --- EXTRATO COMPLETO (CORRIGIDO: ACUTA CONFORME O CLIQUE E NÃO PULA O SCROLL) ---
+# --- EXTRATO COMPLETO ---
 st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
 
 if not df_mes.empty:
@@ -295,7 +299,7 @@ if not df_mes.empty:
         key="editor_extrato"
     )
     
-    # Processa exclusões com rerun síncrono estável
+    # Processa exclusões
     if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("deleted_rows"):
         indices_deletados = st.session_state.editor_extrato["deleted_rows"]
         reais_deletar = [df_visual.iloc[idx]['index_original'] for idx in indices_deletados]
@@ -303,7 +307,7 @@ if not df_mes.empty:
         save_data(st.session_state.df)
         st.rerun()
         
-    # Processa edições com rerun estável (Salva na hora e o Streamlit segura o foco da linha modificada)
+    # Processa edições e avisa o Streamlit de forma síncrona
     if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("edited_rows"):
         alteracoes = st.session_state.editor_extrato["edited_rows"]
         df_principal = load_data()
