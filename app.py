@@ -153,8 +153,6 @@ entradas = df_mes[df_mes['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])
 gastos_fixos = df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
 gastos_extras = df_mes[df_mes['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
 caixinha_mes_atual = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
-
-# Investimentos agora engloba tanto investimentos gerais quanto reposições de reserva na soma mensal
 investimentos = df_mes[df_mes['Tipo'].isin(['📈 Investimentos', '🟢 Reposição Reserva'])]['Valor'].sum()
 
 caixinha_total_acumulada = df_geral[
@@ -178,7 +176,6 @@ saidas_bb_acumulado = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin
 saldo_bb = entradas_bb_acumulado - saidas_bb_acumulado
 
 # --- INTELIGÊNCIA BANCÁRIA: RESERVA DE EMERGÊNCIA ACUMULADA ---
-# Pega o histórico total para saber se há pendências de reserva a serem repostas
 retiradas_reserva = df_historico_ate_aqui[
     (df_historico_ate_aqui['Tipo'] == '🚨 Retirada Reserva') | 
     ((df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False)))
@@ -263,15 +260,24 @@ with col4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- SEÇÃO INTELIGENTE: SAÚDE FINANCEIRA ---
+# --- SEÇÃO INTELIGENTE: SAÚDE FINANCEIRA COMPLETA ---
 st.markdown("### 📊 Saúde Financeira")
-if entradas > 0:
-    porcentagem_gasta = ((gastos_fixos + gastos_extras) / entradas) * 100
-    porcentagem_investida = (investimentos / entradas) * 100
-    
-    col_analise, col_grafico = st.columns([1.2, 1])
-    
-    with col_analise:
+
+col_analise, col_grafico = st.columns([1.2, 1])
+
+with col_analise:
+    # LÓGICA DE EXIBIÇÃO: O alerta da reserva fica FORA da validação de receita, tornando-o fixo em qualquer mês!
+    if deficit_reserva > 0:
+        st.markdown(
+            f"""<div style="border: 1px solid #f59e0b; border-left: 5px solid #f59e0b; background-color: #0f172a; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;">
+                <span style="font-size: 15px; color: #cbd5e1;">⚠️ <b>Reposição Pendente:</b> Identificamos o uso da sua Reserva de Emergência. Resta repor <b>R$ {deficit_reserva:,.2f}</b> para restabelecer seu fundo de segurança.</span>
+            </div>""", unsafe_allow_html=True
+        )
+
+    if entradas > 0:
+        porcentagem_gasta = ((gastos_fixos + gastos_extras) / entradas) * 100
+        porcentagem_investida = (investimentos / entradas) * 100
+        
         if porcentagem_gasta <= 60:
             st.markdown(
                 f"""<div style="border: 1px solid #10b981; border-left: 5px solid #10b981; background-color: #0f172a; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;">
@@ -286,19 +292,19 @@ if entradas > 0:
             )
             
         st.markdown(
-            f"""<div style="border: 1px solid #3b82f6; border-left: 5px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;">
+            f"""<div style="border: 1px solid #3b82f6; border-left: 5px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;">
                 <span style="font-size: 15px; color: #cbd5e1;">📊 <b>Aporte Patrimonial:</b> Você separou <b>{porcentagem_investida:.1f}%</b> da sua receita para Investimentos neste mês.</span>
             </div>""", unsafe_allow_html=True
         )
-
-        if deficit_reserva > 0:
-            st.markdown(
-                f"""<div style="border: 1px solid #f59e0b; border-left: 5px solid #f59e0b; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;">
-                    <span style="font-size: 15px; color: #cbd5e1;">⚠️ <b>Reposição Pendente:</b> Identificamos o uso da sua Reserva de Emergência. Resta repor <b>R$ {deficit_reserva:,.2f}</b> para restabelecer seu fundo de segurança.</span>
-                </div>""", unsafe_allow_html=True
-            )
+    else:
+        st.markdown(
+            """<div style="border: 1px solid #3b82f6; border-left: 5px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;">
+                <span style="font-size: 15px; color: #cbd5e1;">💡 Insira um lançamento do tipo '💰 Entrada' para ativar a análise gráfica de saúde do mês.</span>
+            </div>""", unsafe_allow_html=True
+        )
         
-    with col_grafico:
+with col_grafico:
+    if entradas > 0:
         raw_labels = ['🏠 Gastos Fixos', '🛍️ Gastos Extras', '📈 Investimentos', '✈️ Caixinha Viagem', '⚖️ Saldo Livre']
         valores_pizza = [gastos_fixos, gastos_extras, investimentos, caixinha_mes_atual, max(0, saldo_livre)]
         cores = ['#ef4444', '#cbd5e1', '#3b82f6', '#f59e0b', '#10b981']
@@ -332,12 +338,9 @@ if entradas > 0:
             height=300
         )
         st.plotly_chart(fig, use_container_width=True)
-else:
-    st.markdown(
-        """<div style="border: 1px solid #3b82f6; border-left: 5px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;">
-            <span style="font-size: 15px; color: #cbd5e1;">💡 Insira um lançamento do tipo '💰 Entrada' para ativar a análise gráfica de saúde do mês.</span>
-        </div>""", unsafe_allow_html=True
-    )
+    else:
+        # Espaço em branco harmônico para manter o alinhamento visual
+        st.write("")
 
 st.markdown("---")
 
@@ -357,7 +360,6 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l2_a:
         valor_texto = st.text_input("Valor do Lançamento (R$):", placeholder="0,00")
     with col_l2_b:
-        # CATEGORIAS ATUALIZADAS: Incluído tanto Retirada quanto Reposição expressas
         tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
     with col_l2_c:
         banco_movimentado = st.selectbox("Banco Origem/Destino:", ["🟣 Nubank", "🟡 Banco do Brasil"])
@@ -372,7 +374,6 @@ if submit_button:
     except ValueError:
         valor_final = 0.0
 
-    # INTELIGÊNCIA: Se o usuário selecionou uma categoria de reserva e deixou a descrição vazia, preenche automático!
     if descricao_manual.strip():
         desc_final = descricao_manual.strip().upper()
     elif item_selecionado != "-- Selecione da lista --":
@@ -448,7 +449,6 @@ if not df_mes.empty:
             "index_original": None,
             "Descrição": st.column_config.TextColumn("Descrição", required=True, width=3),
             "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
-            # Atualizado as opções editáveis da tabela
             "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=2),
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1.5),
             "Banco": st.column_config.SelectboxColumn("Banco", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=2),
@@ -481,4 +481,9 @@ if not df_mes.empty:
         save_data(df_principal)
         st.rerun()
 else:
-    st.info(f"Nenhum lançamento cadastrado para {mes_selecionado}.")
+    st.markdown(
+        """<div style="padding: 10px; border-radius: 5px; background-color: rgba(255, 255, 255, 0.05); text-align: center; color: #cbd5e1;">
+            Nenhum lançamento cadastrado para este mês.
+        </div>""",
+        unsafe_allow_html=True
+    )
