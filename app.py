@@ -56,7 +56,7 @@ if 'mes_ativo' not in st.session_state:
 # --- NAVEGAÇÃO NA SIDEBAR ---
 st.sidebar.title("📅 Histórico Financeiro")
 
-anos_disponiveis = [ano_atual - 1, ano_atual]
+anos_disponiveis = [ano_atual - 1, year_atual] if 'year_atual' in locals() else [ano_atual - 1, ano_atual]
 
 for ano in sorted(anos_disponiveis):
     esta_aberto = (ano == ano_atual)
@@ -165,7 +165,7 @@ caixinha_total_acumulada = df_geral[
     (df_geral['Data_Ordem'] <= data_limite_atual)
 ]['Valor'].sum()
 
-# CORRIGIDO: Variável mudada de investments para investimentos
+# CORRIGIDO: Sempre "investimentos" em português
 saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
 # --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
@@ -194,7 +194,7 @@ reposicoes_reserva = df_historico_ate_aqui[
 
 deficit_reserva = retiradas_reserva - reposicoes_reserva
 
-# --- LINHA SUPERIOR: SALDOS BANCÁRIOS ---
+# --- LINHA SUPERIOR: SALDOS BANCÁRIOS (VISUAL ORIGINAL CORRETO) ---
 st.markdown("### 🏦 Saldos Disponíveis nos Bancos")
 col_b1, col_b2 = st.columns(2)
 
@@ -366,8 +366,10 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l2_b:
         tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
     with col_l2_c:
+        # Contas Correntes limpas de verdade
         banco_movimentado = st.selectbox("Banco para pagar/receber:", ["🟣 Nubank", "🟡 Banco do Brasil"])
     with col_l2_d:
+        # Opção dedicada para mapear os 3 cartões sem estragar os saldos
         cartao_usado = st.selectbox("Cartão Utilizado:", ["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"])
         
     st.markdown("<br>", unsafe_allow_html=True)
