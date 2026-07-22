@@ -29,11 +29,16 @@ def load_data():
             if "Banco" not in df.columns:
                 df["Banco"] = "🟣 Nubank"
             if "Cartão" not in df.columns:
-                df["Cartão"] = ""
+                df["Cartão"] = "⚡ Pix"
             
-            # Padroniza dados antigos ou vazios
+            # Limpa registros antigos ou nulos migrando para a opção Pix padrão
             if not df.empty and "Cartão" in df.columns:
-                df["Cartão"] = df["Cartão"].fillna("").replace({"❌ Nenhum": "", "❌ Nenhum (Pix/Débito)": ""})
+                df["Cartão"] = df["Cartão"].fillna("⚡ Pix").replace({
+                    "❌ Nenhum": "⚡ Pix", 
+                    "❌ Nenhum (Pix/Débito)": "⚡ Pix",
+                    "❌ Não Utilizou Cartão": "⚡ Pix",
+                    "": "⚡ Pix"
+                })
                 
             df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0.0)
             return df
@@ -140,7 +145,7 @@ if df_mes_verificacao.empty and not st.session_state.df.empty:
                 "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
                 "Status": "⏳ Pendente",
                 "Banco": df_fixos_anterior["Banco"] if "Banco" in df_fixos_anterior.columns else "🟣 Nubank",
-                "Cartão": df_fixos_anterior["Cartão"] if "Cartão" in df_fixos_anterior.columns else ""
+                "Cartão": df_fixos_anterior["Cartão"] if "Cartão" in df_fixos_anterior.columns else "⚡ Pix"
             })
             st.session_state.df = pd.concat([st.session_state.df, novos_fixos], ignore_index=True)
             save_data(st.session_state.df)
@@ -241,8 +246,8 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l2_c:
         banco_movimentado = st.selectbox("Opção de Pagamento:", ["🟣 Nubank", "🟡 Banco do Brasil"])
     with col_l2_d:
-        # No formulário mudamos o texto para ficar bonito e limpo por padrão
-        cartao_usado = st.selectbox("Cartão Utilizado:", ["❌ Não Utilizou Cartão", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"])
+        # NOVAS OPÇÕES NO MENU DO FORMULÁRIO: Pix, Boleto e Débito Automático adicionados!
+        cartao_usado = st.selectbox("Cartão / Forma de Movimentação:", ["⚡ Pix", "📄 Boleto", "🔄 Débito Automático", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"])
         
     st.markdown("<br>", unsafe_allow_html=True)
     submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
@@ -263,11 +268,8 @@ if submit_button:
 
     status_inicial = "✅ Pago" if tipo in ["💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "📈 Investimentos"] else "⏳ Pendente"
 
-    # Converte o texto do form para string vazia "" no banco de dados
-    cartao_banco_dados = "" if cartao_usado == "❌ Não Utilizou Cartão" else cartao_usado
-
     if desc_final and valor_final > 0:
-        nova_linha = {"Descrição": desc_final, "Valor": valor_final, "Tipo": tipo, "Mês/Ano": mes_selecionado, "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"), "Status": status_inicial, "Banco": banco_movimentado, "Cartão": cartao_banco_dados}
+        nova_linha = {"Descrição": desc_final, "Valor": valor_final, "Tipo": tipo, "Mês/Ano": mes_selecionado, "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"), "Status": status_inicial, "Banco": banco_movimentado, "Cartão": cartao_usado}
         st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([nova_linha])], ignore_index=True)
         save_data(st.session_state.df)
         st.success("Adicionado!")
@@ -293,8 +295,8 @@ if not df_mes.empty:
             "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
             "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
             
-            # SOLUÇÃO INTEGRADA: Adicionamos a opção "" (vazia) na lista de opções permitidas!
-            "Cartão": st.column_config.SelectboxColumn("Cartão", options=["", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"], required=False, width=1.5),
+            # NOVAS OPÇÕES NO EXTRATO: As opções de Pix, Boleto e Débito automático estão mapeadas perfeitamente para seleção rápida!
+            "Cartão": st.column_config.SelectboxColumn("Cartão / Canal", options=["⚡ Pix", "📄 Boleto", "🔄 Débito Automático", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"], required=True, width=1.5),
             
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1),
             "Banco": st.column_config.SelectboxColumn("Opção de Pagamento", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=1.5),
