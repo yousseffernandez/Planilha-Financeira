@@ -51,30 +51,6 @@ if 'mes_ativo' not in st.session_state:
 # --- NAVEGAÇÃO NA SIDEBAR ---
 st.sidebar.title("📅 Histórico Financeiro")
 
-# Injeção de CSS Avançada: Procura o botão que contém a marcação "⭐" e muda o fundo dele para Verde Colorido
-st.sidebar.markdown(
-    """
-    <style>
-    div[data-testid="stSidebarExpander"] div[data-testid="stButton"] button {
-        border-radius: 8px !important;
-    }
-    /* Alvo específico para o botão ativo que contém o caractere da estrela */
-    div[data-testid="stSidebarExpander"] div[data-testid="stButton"] button:has(p:contains("⭐")) {
-        background-color: #10b981 !important;
-        color: #ffffff !important;
-        border: 1px solid #059669 !important;
-        box-shadow: 0px 0px 10px rgba(16, 185, 129, 0.4) !important;
-    }
-    div[data-testid="stSidebarExpander"] div[data-testid="stButton"] button:has(p:contains("⭐")) p {
-        color: #ffffff !important;
-        font-weight: 800 !important;
-        letter-spacing: 0.5px !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
 anos_disponiveis = [ano_atual - 1, ano_atual]
 
 for ano in sorted(anos_disponiveis):
@@ -82,11 +58,34 @@ for ano in sorted(anos_disponiveis):
     with st.sidebar.expander(f"📁 Ano {ano}", expanded=esta_aberto):
         for mes in meses_ano:
             nome_opcao = f"{mes} / {ano}"
-            # Usamos a estrela interna oculta para o CSS identificar quem pintar de verde colorido
-            label_botao = f"⭐ {mes.upper()}" if st.session_state.mes_ativo == nome_opcao else mes
-            if st.button(label_botao, key=f"btn_{mes}_{ano}", use_container_width=True):
-                st.session_state.mes_ativo = nome_opcao
-                st.rerun()
+            
+            if st.session_state.mes_ativo == nome_opcao:
+                # Se for o mês ativo, renderiza um botão colorido diretamente usando HTML/CSS nativo
+                st.markdown(
+                    f"""
+                    <div style="
+                        background-color: #10b981; 
+                        color: white; 
+                        padding: 8px 16px; 
+                        border-radius: 8px; 
+                        text-align: center; 
+                        font-weight: 800; 
+                        font-size: 14px; 
+                        letter-spacing: 0.5px;
+                        border: 1px solid #059669;
+                        margin-bottom: 4px;
+                        box-shadow: 0px 0px 8px rgba(16, 185, 129, 0.3);
+                    ">
+                        {mes.upper()}
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
+            else:
+                # Se não for o ativo, usa o botão padrão cinza do Streamlit
+                if st.button(mes, key=f"btn_{mes}_{ano}", use_container_width=True):
+                    st.session_state.mes_ativo = nome_opcao
+                    st.rerun()
 
 mes_selecionado = st.session_state.mes_ativo
 
