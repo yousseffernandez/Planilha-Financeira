@@ -98,7 +98,7 @@ if not st.session_state.df.empty:
     descricoes_salvas = st.session_state.df["Descrição"].dropna().unique().tolist()
     itens_ja_usados = sorted([str(d).strip().upper() for d in descricoes_salvas if str(d).strip()])
 
-# --- AUTOMATIZAÇÃO DE REPETIÇÃO DE GASTOS FIXOS & CARTÃO ---
+# --- AUTOMATIZAÇÃO DE REPETIÇÃO DE GASTOS FIXOS ---
 df_geral = st.session_state.df.copy()
 
 def converter_mes_ano_para_data(string_mes_ano):
@@ -123,14 +123,14 @@ if df_mes_verificacao.empty and not st.session_state.df.empty:
         
         df_fixos_anterior = df_geral[
             (df_geral['Mês/Ano'] == ultimo_mes_com_registro) & 
-            (df_geral['Tipo'].isin(['🏠 Gasto Fixo', '💳 Cartão de Crédito']))
+            (df_geral['Tipo'] == '🏠 Gasto Fixo')
         ].copy()
         
         if not df_fixos_anterior.empty:
             novos_fixos = pd.DataFrame({
                 "Descrição": df_fixos_anterior["Descrição"],
                 "Valor": df_fixos_anterior["Valor"],
-                "Tipo": df_fixos_anterior["Tipo"],
+                "Tipo": "🏠 Gasto Fixo",
                 "Mês/Ano": mes_selecionado,
                 "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
                 "Status": "⏳ Pendente",
@@ -156,7 +156,6 @@ df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 # --- PROCESSAMENTO DOS TOTAIS DO MÊS ATUAL ---
 entradas = df_mes[df_mes['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])]['Valor'].sum()
 gastos_fixos = df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
-gastos_cartao = df_mes[df_mes['Tipo'] == '💳 Cartão de Crédito']['Valor'].sum()
 gastos_extras = df_mes[df_mes['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
 caixinha_mes_atual = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
 investimentos = df_mes[df_mes['Tipo'].isin(['📈 Investimentos', '🟢 Reposição Reserva'])]['Valor'].sum()
@@ -166,7 +165,7 @@ caixinha_total_acumulada = df_geral[
     (df_geral['Data_Ordem'] <= data_limite_atual)
 ]['Valor'].sum()
 
-saldo_livre = entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investimentos)
+saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
 # --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
 df_historico_ate_aqui = df_geral[df_geral['Data_Ordem'] <= data_limite_atual]
@@ -287,7 +286,7 @@ with col_analise:
         if porcentagem_gasta <= 60:
             st.markdown(
                 f"""<div style="border: 1px solid #10b981; border-left: 5px solid #10b981; background-color: #0f172a; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;">
-                    <span style="font-size: 15px; color: #cbd5e1;">🟢 <b>Custo de Vida sob controle:</b> Seus gastos (fixos/cartão/extras) consomem <b>{porcentagem_gasta:.1f}%</b> da renda (dentro da meta ideal de 60%).</span>
+                    <span style="font-size: 15px; color: #cbd5e1;">🟢 <b>Custo de Vida sob controle:</b> Seus gastos (fixos/cartão/extras) consumes <b>{porcentagem_gasta:.1f}%</b> da renda (dentro da meta ideal de 60%).</span>
                 </div>""", unsafe_allow_html=True
             )
         else:
@@ -298,7 +297,7 @@ with col_analise:
             )
             
         st.markdown(
-            f"""<div style="border: 1px solid #3b82f6; border-left: 5px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;">
+            f"""<div style="border: 1px solid #3b82f6; border-left: 3px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;">
                 <span style="font-size: 15px; color: #cbd5e1;">📊 <b>Aporte Patrimonial:</b> Você separou <b>{porcentagem_investida:.1f}%</b> da sua receita para Investimentos neste mês.</span>
             </div>""", unsafe_allow_html=True
         )
@@ -385,9 +384,9 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l2_b:
         tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
     with col_l2_c:
-        banco_movimentado = st.selectbox("Banco Origem/Destino:", ["🟣 Nubank", "🟡 Banco do Brasil"])
+        # ALTERADO: Nome do campo modificado para ser mais claro
+        banco_movimentado = st.selectbox("Opção de Pagamento:", ["🟣 Nubank", "🟡 Banco do Brasil"])
     with col_l2_d:
-        # NOVA COLUNA NO FORMULÁRIO: Mapeia em qual cartão a despesa foi feita
         cartao_usado = st.selectbox("Cartão Utilizado:", ["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"])
         
     st.markdown("<br>", unsafe_allow_html=True)
@@ -477,10 +476,10 @@ if not df_mes.empty:
             "Descrição": st.column_config.TextColumn("Descrição", required=True, width=2.5),
             "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
             "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
-            # NOVA COLUNA NO EXTRATO: Mapeia de forma interativa os 3 cartões nas linhas da tabela
             "Cartão": st.column_config.SelectboxColumn("Cartão", options=["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"], required=True, width=1.5),
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1),
-            "Banco": st.column_config.SelectboxColumn("Banco", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=1.5),
+            # ALTERADO: Título da coluna na tabela passou de 'Banco' para 'Opção de Pagamento'
+            "Banco": st.column_config.SelectboxColumn("Opção de Pagamento", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=1.5),
             "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=1.5)
         },
         key="editor_extrato"
