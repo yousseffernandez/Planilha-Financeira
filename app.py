@@ -245,7 +245,7 @@ with col4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- SEÇÃO INTELIGENTE: SAÚDE FINANCEIRA COM PIZZA INTERATIVA ---
+# --- SEÇÃO INTELIGENTE: SAÚDE FINANCEIRA COM LEGENDA EM PORCENTAGEM ---
 st.markdown("### 📊 Saúde Financeira")
 if entradas > 0:
     porcentagem_gasta = ((gastos_fixos + gastos_extras) / entradas) * 100
@@ -262,26 +262,34 @@ if entradas > 0:
         st.info(f"📊 **Aporte Patrimonial:** Você separou **{porcentagem_investida:.1f}%** da sua receita para Investimentos neste mês.")
         
     with col_grafico:
-        labels = ['🏠 Gastos Fixos', '🛍️ Gastos Extras', '📈 Investimentos', '✈️ Caixinha Viagem', '⚖️ Saldo Livre']
+        raw_labels = ['🏠 Gastos Fixos', '🛍️ Gastos Extras', '📈 Investimentos', '✈️ Caixinha Viagem', '⚖️ Saldo Livre']
         valores = [gastos_fixos, gastos_extras, investimentos, caixinha_mes_atual, max(0, saldo_livre)]
         cores = ['#ef4444', '#cbd5e1', '#3b82f6', '#f59e0b', '#10b981']
         
-        labels_filtrados = [l for l, v in zip(labels, valores) if v > 0]
-        valores_filtrados = [v for v in valores if v > 0]
-        cores_filtradas = [c for c, v in zip(cores, valores) if v > 0]
+        # Filtragem de valores maiores que zero
+        labels_filtrados = []
+        valores_filtrados = []
+        cores_filtradas = []
         
-        # AJUSTE NO GRÁFICO: Ocultamos os rótulos de texto estáticos vazados da rosca e deixamos as informações completas no balão ao passar o mouse (hover)
+        for l, v, c in zip(raw_labels, valores, cores):
+            if v > 0:
+                pct = (v / entradas) * 100
+                # AJUSTE DA LEGENDA: Adiciona a porcentagem de forma legível logo após o nome do item
+                labels_filtrados.append(f"{l} ({pct:.1f}%)")
+                valores_filtrados.append(v)
+                cores_filtradas.append(c)
+        
         fig = go.Figure(data=[go.Pie(
             labels=labels_filtrados, 
             values=valores_filtrados, 
             hole=.4,
             marker=dict(colors=cores_filtradas),
-            textinfo='none',  # Remove o texto por cima que ficava quebrado/cortado
-            hovertemplate='<b>%{label}</b><br>Valor: R$ %{value:,.2f}<br>Proporção: %{percent}<extra></extra>'
+            textinfo='none',  
+            hovertemplate='<b>% {label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>'
         )])
         
         fig.update_layout(
-            margin=dict(t=25, b=25, l=25, r=25), # Dá mais respiro para as bordas
+            margin=dict(t=25, b=25, l=25, r=25),
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             showlegend=True,
