@@ -52,12 +52,11 @@ mes_atual_nome = meses_ano[data_hoje.month - 1]
 if 'mes_ativo' not in st.session_state:
     st.session_state.mes_ativo = f"{mes_atual_nome} / {ano_atual}"
 
-# --- NAVEGAÇÃO NA SIDEBAR (APENAS O PASSADO E O ANO VIGENTE) ---
+# --- NAVEGAÇÃO NA SIDEBAR ---
 st.sidebar.title("📅 Histórico Financeiro")
-# Mudança estratégica: exibe apenas do ano passado até o ano atual. O ano que vem surge sozinho na virada.
-anos_disponiveis = [ano_atual - 1, ano_atual]
+anos_disponiveis = [ano_atual - 1, 
+                    ano_atual]
 
-# Exibe do menor para o maior (mais antigo no topo)
 for ano in sorted(anos_disponiveis):
     esta_aberto = (ano == ano_atual)
     with st.sidebar.expander(f"📁 Ano {ano}", expanded=esta_aberto):
@@ -70,23 +69,41 @@ for ano in sorted(anos_disponiveis):
 
 mes_selecionado = st.session_state.mes_ativo
 
-# --- TÍTULO PRINCIPAL ---
-st.title(f"💰 FinançasPro — {mes_selecionado}")
-st.markdown("---")
-
 # --- FILTRAR DADOS ---
 df_geral = st.session_state.df.copy()
 df_geral['index_original'] = df_geral.index
+
+# Processa a linha do tempo para calcular o acúmulo histórico da caixinha
+def converter_mes_ano_para_data(string_mes_ano):
+    try:
+        partes = string_mes_ano.split("/")
+        m_nome = partes[0].strip()
+        a_num = int(partes[1].strip())
+        m_num = meses_ano.index(m_nome) + 1
+        return datetime(a_num, m_num, 1)
+    except:
+        return datetime(2000, 1, 1)
+
+df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
+data_limite_atual = converter_mes_ano_para_data(mes_selecionado)
+
+# Dados do mês selecionado na tela
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
 # --- PROCESSAMENTO DOS TOTAIS ---
 entradas = df_mes[df_mes['Tipo'] == '💰 Entrada']['Valor'].sum()
 gastos_fixos = df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
 gastos_extras = df_mes[df_mes['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
-caixinha_viagem = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
+caixinha_mes_atual = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
 investimentos = df_mes[df_mes['Tipo'] == '📈 Investimentos']['Valor'].sum()
 
-total_saidas = gastos_fixos + gastos_extras + caixinha_viagem + investimentos
+# CÁLCULO ACUMULATIVO: Soma tudo desde o passado até o mês ativo na tela
+caixinha_total_acumulada = df_geral[
+    (df_geral['Tipo'] == '✈️ Caixinha Viagem') & 
+    (df_geral['Data_Ordem'] <= data_limite_atual)
+]['Valor'].sum()
+
+total_saidas = gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos
 saldo_livre = entradas - total_saidas
 
 # --- CARDS DE RESUMO EM 5 COLUNAS ---
@@ -124,8 +141,8 @@ with col4:
 with col5:
     st.markdown(
         f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 15px; border-radius: 12px;">
-            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">✈️ CAIXINHA VIAGEM</span><br>
-            <span style="color: #f59e0b; font-size: 22px; font-weight: 800;">R$ {caixinha_viagem:,.2f}</span>
+            <span style="color: #94a3b8; font-size: 12px; font-weight: bold; letter-spacing: 0.5px;">✈️ TOTAL NA CAIXINHA</span><br>
+            <span style="color: #f59e0b; font-size: 22px; font-weight: 800;">R$ {caixinha_total_acumulada:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 
