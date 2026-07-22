@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit st
 import pandas as pd
 from datetime import datetime
 import os
@@ -96,7 +96,7 @@ if not st.session_state.df.empty:
     descricoes_salvas = st.session_state.df["Descrição"].dropna().unique().tolist()
     itens_ja_usados = sorted([str(d).strip().upper() for d in descricoes_salvas if str(d).strip()])
 
-# --- AUTOMATIZAÇÃO DE REPETIÇÃO DE GASTOS FIXOS & CARTÃO ---
+# --- AUTOMATIZAÇÃO DE REPETIÇÃO DE GASTOS FIXOS & FATURAS ---
 df_geral = st.session_state.df.copy()
 
 def converter_mes_ano_para_data(string_mes_ano):
@@ -121,7 +121,7 @@ if df_mes_verificacao.empty and not st.session_state.df.empty:
         
         df_fixos_anterior = df_geral[
             (df_geral['Mês/Ano'] == ultimo_mes_com_registro) & 
-            (df_geral['Tipo'].isin(['🏠 Gasto Fixo', '💳 Cartão de Crédito']))
+            (df_geral['Tipo'].isin(['🏠 Gasto Fixo', '💳 Fatura Nubank', '💳 Fatura BB', '💳 Fatura Mercado Pago']))
         ].copy()
         
         if not df_fixos_anterior.empty:
@@ -150,8 +150,7 @@ df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
 # --- PROCESSAMENTO DOS TOTAIS DO MÊS ATUAL ---
 entradas = df_mes[df_mes['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])]['Valor'].sum()
-gastos_fixos = df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
-gastos_cartao = df_mes[df_mes['Tipo'] == '💳 Cartão de Crédito']['Valor'].sum()
+gastos_fixos_totais = df_mes[df_mes['Tipo'].isin(['🏠 Gasto Fixo', '💳 Fatura Nubank', '💳 Fatura BB', '💳 Fatura Mercado Pago'])]['Valor'].sum()
 gastos_extras = df_mes[df_mes['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
 caixinha_mes_atual = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
 investimentos = df_mes[df_mes['Tipo'].isin(['📈 Investimentos', '🟢 Reposição Reserva'])]['Valor'].sum()
@@ -161,20 +160,20 @@ caixinha_total_acumulada = df_geral[
     (df_geral['Data_Ordem'] <= data_limite_atual)
 ]['Valor'].sum()
 
-saldo_livre = entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investimentos)
+saldo_livre = entradas - (gastos_fixos_totais + gastos_extras + caixinha_mes_atual + investimentos)
 
 # --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
 df_historico_ate_aqui = df_geral[df_geral['Data_Ordem'] <= data_limite_atual]
 
-# Nubank
-entradas_nu_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟣 Nubank')]['Valor'].sum()
-saidas_nu_acumulado = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟣 Nubank') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
-saldo_nu = entradas_nu_acumulado - saidas_nu_acumulado
+# Nubank: Registra as entradas menos as saídas de fato pagas por ele
+entradas_nu = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟣 Nubank')]['Valor'].sum()
+saidas_nu = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟣 Nubank') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
+saldo_nu = entradas_nu - saidas_nu
 
-# Banco do Brasil
-entradas_bb_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil')]['Valor'].sum()
-saidas_bb_acumulado = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
-saldo_bb = entradas_bb_acumulado - saidas_bb_acumulado
+# Banco do Brasil: Registra as entradas menos as saídas de fato pagas por ele
+entradas_bb = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil')]['Valor'].sum()
+saidas_bb = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
+saldo_bb = entradas_bb - saidas_bb
 
 # --- INTELIGÊNCIA BANCÁRIA: RESERVA DE EMERGÊNCIA ACUMULADA ---
 retiradas_reserva = df_historico_ate_aqui[
@@ -189,7 +188,7 @@ reposicoes_reserva = df_historico_ate_aqui[
 
 deficit_reserva = retiradas_reserva - reposicoes_reserva
 
-# --- LINHA SUPERIOR: SALDOS BANCÁRIOS ---
+# --- LINHA SUPERIOR: APENAS OS DOIS BANCOS REAIS VOLTARAM ---
 st.markdown("### 🏦 Saldos Disponíveis nos Bancos")
 col_b1, col_b2 = st.columns(2)
 
@@ -211,40 +210,39 @@ with col_b2:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- REORGANIZAÇÃO EM 4 COLUNAS (ALTURA EQUILIBRADA A 135PX) ---
+# --- REORGANIZAÇÃO EM 4 COLUNAS ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 with col1:
     cor_saldo_texto = "#10b981" if saldo_livre >= 0 else "#ef4444"
     st.markdown(
-        f"""<div style="border: 1px solid #10b981; border-left: 6px solid #10b981; background-color: #0f172a; padding: 10px 15px; border-radius: 12px; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between;">
+        f"""<div style="border: 1px solid #10b981; border-left: 6px solid #10b981; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">💰 ENTRADAS & SALDO</span>
-            <div style="margin-top: 2px; display: flex; flex-direction: column;">
-                <span style="color: #10b981; font-size: 17px; font-weight: 700; padding-bottom: 2px;">💰 Receita: R$ {entradas:,.2f}</span>
+            <div style="margin-top: 6px; display: flex; flex-direction: column;">
+                <span style="color: #10b981; font-size: 18px; font-weight: 700; padding-bottom: 4px;">💰 Receita: R$ {entradas:,.2f}</span>
                 <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 3px 0;"></div>
-                <span style="color: {cor_saldo_texto}; font-size: 17px; font-weight: 700; padding-top: 2px;">⚖️ Livre: R$ {saldo_livre:,.2f}</span>
+                <span style="color: {cor_saldo_texto}; font-size: 18px; font-weight: 700; padding-top: 4px;">⚖️ Livre: R$ {saldo_livre:,.2f}</span>
             </div>
         </div>""", unsafe_allow_html=True
     )
 
 with col2:
     st.markdown(
-        f"""<div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 10px 15px; border-radius: 12px; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between;">
+        f"""<div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📊 GASTOS MENSAIS</span>
-            <div style="margin-top: 2px; display: flex; flex-direction: column;">
-                <span style="color: #ef4444; font-size: 14px; font-weight: 700;">🏠 Fixos: R$ {gastos_fixos:,.2f}</span>
-                <span style="color: #f43f5e; font-size: 14px; font-weight: 700; padding-top: 1px;">💳 Cartão: R$ {gastos_cartao:,.2f}</span>
-                <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 2px 0;"></div>
-                <span style="color: #cbd5e1; font-size: 14px; font-weight: 700;">🛍️ Extras: R$ {gastos_extras:,.2f}</span>
+            <div style="margin-top: 6px; display: flex; flex-direction: column;">
+                <span style="color: #ef4444; font-size: 18px; font-weight: 700; padding-bottom: 4px;">🏠 Fixos: R$ {gastos_fixos_totais:,.2f}</span>
+                <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 3px 0;"></div>
+                <span style="color: #cbd5e1; font-size: 18px; font-weight: 700; padding-top: 4px;">🛍️ Extras: R$ {gastos_extras:,.2f}</span>
             </div>
         </div>""", unsafe_allow_html=True
     )
 
 with col3:
     st.markdown(
-        f"""<div style="border: 1px solid #3b82f6; border-left: 6px solid #3b82f6; background-color: #0f172a; padding: 10px 15px; border-radius: 12px; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between;">
+        f"""<div style="border: 1px solid #3b82f6; border-left: 6px solid #3b82f6; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📈 INVESTIMENTOS</span>
-            <div style="flex-grow: 1; display: flex; align-items: center; margin-top: 8px;">
+            <div style="flex-grow: 1; display: flex; align-items: center; margin-top: 12px;">
                 <span style="color: #3b82f6; font-size: 24px; font-weight: 800;">R$ {investimentos:,.2f}</span>
             </div>
         </div>""", unsafe_allow_html=True
@@ -252,9 +250,9 @@ with col3:
 
 with col4:
     st.markdown(
-        f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 10px 15px; border-radius: 12px; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between;">
+        f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">✈️ CAIXINHA VIAGEM</span>
-            <div style="flex-grow: 1; display: flex; align-items: center; margin-top: 8px;">
+            <div style="flex-grow: 1; display: flex; align-items: center; margin-top: 12px;">
                 <span style="color: #f59e0b; font-size: 24px; font-weight: 800;">R$ {caixinha_total_acumulada:,.2f}</span>
             </div>
         </div>""", unsafe_allow_html=True
@@ -276,13 +274,13 @@ with col_analise:
         )
 
     if entradas > 0:
-        porcentagem_gasta = ((gastos_fixos + gastos_cartao + gastos_extras) / entradas) * 100
+        porcentagem_gasta = ((gastos_fixos_totais + gastos_extras) / entradas) * 100
         porcentagem_investida = (investimentos / entradas) * 100
         
         if porcentagem_gasta <= 60:
             st.markdown(
                 f"""<div style="border: 1px solid #10b981; border-left: 5px solid #10b981; background-color: #0f172a; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;">
-                    <span style="font-size: 15px; color: #cbd5e1;">🟢 <b>Custo de Vida sob controle:</b> Seus gastos (fixos/cartão/extras) consomem <b>{porcentagem_gasta:.1f}%</b> da renda (dentro da meta ideal de 60%).</span>
+                    <span style="font-size: 15px; color: #cbd5e1;">🟢 <b>Custo de Vida sob controle:</b> Seus gastos (fixos/faturas/extras) consomem <b>{porcentagem_gasta:.1f}%</b> da renda (dentro da meta ideal de 60%).</span>
                 </div>""", unsafe_allow_html=True
             )
         else:
@@ -306,9 +304,13 @@ with col_analise:
         
 with col_grafico:
     if entradas > 0:
-        raw_labels = ['🏠 Gastos Fixos', '💳 Cartão de Crédito', '🛍️ Gastos Extras', '📈 Investimentos', '✈️ Caixinha Viagem', '⚖️ Saldo Livre']
-        valores_pizza = [gastos_fixos, gastos_cartao, gastos_extras, investimentos, caixinha_mes_atual, max(0, saldo_livre)]
-        cores = ['#ef4444', '#f43f5e', '#cbd5e1', '#3b82f6', '#f59e0b', '#10b981']
+        raw_labels = ['🏠 Gastos Fixos', '💳 Fatura Nubank', '💳 Fatura BB', '💳 Fatura Mercado Pago', '🛍️ Gastos Extras', '📈 Investimentos', '✈️ Caixinha Viagem', '⚖️ Saldo Livre']
+        valores_pizza = [df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum(),
+                         df_mes[df_mes['Tipo'] == '💳 Fatura Nubank']['Valor'].sum(),
+                         df_mes[df_mes['Tipo'] == '💳 Fatura BB']['Valor'].sum(),
+                         df_mes[df_mes['Tipo'] == '💳 Fatura Mercado Pago']['Valor'].sum(),
+                         gastos_extras, investimentos, caixinha_mes_atual, max(0, saldo_livre)]
+        cores = ['#ef4444', '#8a05be', '#facc15', '#00aae4', '#cbd5e1', '#3b82f6', '#f59e0b', '#10b981']
         
         labels_filtrados = []
         valores_filtrados = []
@@ -324,64 +326,45 @@ with col_grafico:
         fig = go.Figure(data=[go.Pie(
             labels=labels_filtrados, 
             values=valores_filtrados, 
-            hole=.55, # Aumentado levemente o furo para caber o texto
+            hole=.4,
             marker=dict(colors=cores_filtradas),
             textinfo='none',  
             hovertemplate='<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>'
         )])
         
-        # MELHORIA VISUAL: Inserindo o Saldo Livre formatado no centro da rosca
         fig.update_layout(
-            margin=dict(t=15, b=15, l=15, r=15),
+            margin=dict(t=25, b=25, l=25, r=25),
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             showlegend=True,
-            legend=dict(font=dict(color='#cbd5e1', size=15)),
-            height=300,
-            annotations=[dict(
-                text=f"Livre<br><b style='font-size:16px;color:#10b981;'>R$ {saldo_livre:,.2f}</b>", 
-                x=0.5, y=0.5, 
-                font=dict(size=13, color='#94a3b8'), 
-                showarrow=False,
-                align="center"
-            )]
+            legend=dict(font=dict(color='#cbd5e1', size=16)),
+            height=300
         )
         st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.write("")
+else:
+    st.write("")
 
 st.markdown("---")
 
-# --- FORMULÁRIO COMPACTO COM MELHORIA DE BORDA ---
+# --- FORMULÁRIO COMPACTO ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
 opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "🚨 RETIRADA RESERVA", "🟢 REPOSIÇÃO RESERVA", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"]
-
-# CSS Injetado para dar um tapa sutil no visual dos inputs do formulário do Streamlit
-st.markdown(
-    """
-    <style>
-        div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {
-            border: 1px solid rgba(148, 163, 184, 0.15) !important;
-            border-radius: 6px !important;
-        }
-    </style>
-    """, unsafe_allow_html=True
-)
 
 with st.form(key='finance_form', clear_on_submit=True):
     col_l1_a, col_l1_b = st.columns(2)
     with col_l1_a:
         item_selecionado = st.selectbox("Escolha um gasto da lista:", opcoes_selectbox)
     with col_l1_b:
-        descricao_manual = st.text_input("Ou digite um item novo:", placeholder="Ex: NETFLIX, ACADEMIA, SPOTIFY...")
+        descricao_manual = st.text_input("Ou digite um item novo:", placeholder="Ex: NETFLIX, MENSALIDADE ACADEMIA...")
         
     col_l2_a, col_l2_b, col_l2_c = st.columns(3)
     with col_l2_a:
         valor_texto = st.text_input("Valor do Lançamento (R$):", placeholder="0,00")
     with col_l2_b:
-        tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
+        tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "💳 Fatura Nubank", "💳 Fatura BB", "💳 Fatura Mercado Pago", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
     with col_l2_c:
+        # CORREÇÃO AQUI: Deixamos apenas Nubank e BB como opções reais de conta bancária de débito/origem
         banco_movimentado = st.selectbox("Banco Origem/Destino:", ["🟣 Nubank", "🟡 Banco do Brasil"])
         
     st.markdown("<br>", unsafe_allow_html=True)
@@ -469,8 +452,9 @@ if not df_mes.empty:
             "index_original": None,
             "Descrição": st.column_config.TextColumn("Descrição", required=True, width=3),
             "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
-            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=2),
+            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Fatura Nubank", "💳 Fatura BB", "💳 Fatura Mercado Pago", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=2),
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1.5),
+            # O Banco no extrato mapeia a conta real usada para pagar (Nubank ou BB)
             "Banco": st.column_config.SelectboxColumn("Banco", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=2),
             "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=2)
         },
