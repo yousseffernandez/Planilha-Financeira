@@ -29,11 +29,11 @@ def load_data():
             if "Banco" not in df.columns:
                 df["Banco"] = "🟣 Nubank"
             if "Cartão" not in df.columns:
-                df["Cartão"] = "❌ Nenhum (Pix/Débito)"
+                df["Cartão"] = ""
             
-            # Garante que dados antigos curtos sejam lidos sem quebrar o editor
+            # Padroniza dados antigos ou vazios
             if not df.empty and "Cartão" in df.columns:
-                df["Cartão"] = df["Cartão"].replace({"❌ Nenhum": "❌ Nenhum (Pix/Débito)"})
+                df["Cartão"] = df["Cartão"].fillna("").replace({"❌ Nenhum": "", "❌ Nenhum (Pix/Débito)": ""})
                 
             df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0.0)
             return df
@@ -116,7 +116,6 @@ def converter_mes_ano_para_data(string_mes_ano):
     except:
         return datetime(2000, 1, 1)
 
-# CORREÇÃO CRUCIAL AQUI: Criamos as colunas de ordem ANTES de rodar qualquer totalizador ou automação
 df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 data_limite_atual = converter_mes_ano_para_data(mes_selecionado)
 
@@ -141,19 +140,18 @@ if df_mes_verificacao.empty and not st.session_state.df.empty:
                 "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
                 "Status": "⏳ Pendente",
                 "Banco": df_fixos_anterior["Banco"] if "Banco" in df_fixos_anterior.columns else "🟣 Nubank",
-                "Cartão": df_fixos_anterior["Cartão"] if "Cartão" in df_fixos_anterior.columns else "❌ Nenhum (Pix/Débito)"
+                "Cartão": df_fixos_anterior["Cartão"] if "Cartão" in df_fixos_anterior.columns else ""
             })
             st.session_state.df = pd.concat([st.session_state.df, novos_fixos], ignore_index=True)
             save_data(st.session_state.df)
             st.rerun()
 
-# Atualiza filtros e índices reais após processamentos internos
+# Filtros e Totais principais
 df_geral = st.session_state.df.copy()
 df_geral['index_original'] = df_geral.index
 df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
-# --- PROCESSAMENTO DOS TOTAIS ---
 entradas = df_mes[df_mes['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])]['Valor'].sum()
 gastos_fixos = df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
 gastos_cartao = df_mes[df_mes['Tipo'] == '💳 Cartão de Crédito']['Valor'].sum()
@@ -162,10 +160,9 @@ caixinha_mes_atual = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor']
 investimentos = df_mes[df_mes['Tipo'].isin(['📈 Investimentos', '🟢 Reposição Reserva'])]['Valor'].sum()
 
 caixinha_total_acumulada = df_geral[(df_geral['Tipo'] == '✈️ Caixinha Viagem') & (df_geral['Data_Ordem'] <= data_limite_atual)]['Valor'].sum()
-saldo_livre = entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investments_sum if 'investments_sum' in locals() else investimentos)
+saldo_livre = entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investimentos)
 porcentagem_investida = (investimentos / entradas) * 100 if entradas > 0 else 0.0
 
-# --- SALDOS BANCÁRIOS ACUMULADOS ---
 df_historico_ate_aqui = df_geral[df_geral['Data_Ordem'] <= data_limite_atual]
 entradas_nu = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟣 Nubank')]['Valor'].sum()
 saidas_nu = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟣 Nubank') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
@@ -244,7 +241,8 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l2_c:
         banco_movimentado = st.selectbox("Opção de Pagamento:", ["🟣 Nubank", "🟡 Banco do Brasil"])
     with col_l2_d:
-        cartao_usado = st.selectbox("Cartão Utilizado:", ["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"])
+        # No formulário mudamos o texto para ficar bonito e limpo por padrão
+        cartao_usado = st.selectbox("Cartão Utilizado:", ["❌ Não Utilizou Cartão", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"])
         
     st.markdown("<br>", unsafe_allow_html=True)
     submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
@@ -265,8 +263,11 @@ if submit_button:
 
     status_inicial = "✅ Pago" if tipo in ["💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "📈 Investimentos"] else "⏳ Pendente"
 
+    # Converte o texto do form para string vazia "" no banco de dados
+    cartao_banco_dados = "" if cartao_usado == "❌ Não Utilizou Cartão" else cartao_usado
+
     if desc_final and valor_final > 0:
-        nova_linha = {"Descrição": desc_final, "Valor": valor_final, "Tipo": tipo, "Mês/Ano": mes_selecionado, "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"), "Status": status_inicial, "Banco": banco_movimentado, "Cartão": cartao_usado}
+        nova_linha = {"Descrição": desc_final, "Valor": valor_final, "Tipo": tipo, "Mês/Ano": mes_selecionado, "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"), "Status": status_inicial, "Banco": banco_movimentado, "Cartão": cartao_banco_dados}
         st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([nova_linha])], ignore_index=True)
         save_data(st.session_state.df)
         st.success("Adicionado!")
@@ -291,7 +292,10 @@ if not df_mes.empty:
             "Descrição": st.column_config.TextColumn("Descrição", required=True, width=2.5),
             "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
             "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
-            "Cartão": st.column_config.SelectboxColumn("Cartão", options=["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"], required=True, width=1.5),
+            
+            # SOLUÇÃO INTEGRADA: Adicionamos a opção "" (vazia) na lista de opções permitidas!
+            "Cartão": st.column_config.SelectboxColumn("Cartão", options=["", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"], required=False, width=1.5),
+            
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1),
             "Banco": st.column_config.SelectboxColumn("Opção de Pagamento", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=1.5),
             "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=1.5)
@@ -307,7 +311,7 @@ if not df_mes.empty:
         save_data(st.session_state.df)
         st.rerun()
         
-    # Processa edições e avisa o Streamlit de forma síncrona
+    # Processa edições
     if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("edited_rows"):
         alteracoes = st.session_state.editor_extrato["edited_rows"]
         df_principal = load_data()
