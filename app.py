@@ -1,4 +1,4 @@
-import streamlit st
+import streamlit as st
 import pandas as pd
 from datetime import datetime
 import os
@@ -138,7 +138,7 @@ if df_mes_verificacao.empty and not st.session_state.df.empty:
             save_data(st.session_state.df)
             st.rerun()
 
-# Atualiza os filtros após processamento
+# Re-atualiza os filtros após processamento
 df_geral = st.session_state.df.copy()
 df_geral['index_original'] = df_geral.index
 if "Status" not in df_geral.columns:
@@ -165,12 +165,12 @@ saldo_livre = entradas - (gastos_fixos_totais + gastos_extras + caixinha_mes_atu
 # --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
 df_historico_ate_aqui = df_geral[df_geral['Data_Ordem'] <= data_limite_atual]
 
-# Nubank: Registra as entradas menos as saídas de fato pagas por ele
+# Nubank
 entradas_nu = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟣 Nubank')]['Valor'].sum()
 saidas_nu = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟣 Nubank') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_nu = entradas_nu - saidas_nu
 
-# Banco do Brasil: Registra as entradas menos as saídas de fato pagas por ele
+# Banco do Brasil
 entradas_bb = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil')]['Valor'].sum()
 saidas_bb = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_bb = entradas_bb - saidas_bb
@@ -188,7 +188,7 @@ reposicoes_reserva = df_historico_ate_aqui[
 
 deficit_reserva = retiradas_reserva - reposicoes_reserva
 
-# --- LINHA SUPERIOR: APENAS OS DOIS BANCOS REAIS VOLTARAM ---
+# --- LINHA SUPERIOR: SALDOS BANCÁRIOS ---
 st.markdown("### 🏦 Saldos Disponíveis nos Bancos")
 col_b1, col_b2 = st.columns(2)
 
@@ -364,7 +364,6 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l2_b:
         tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "💳 Fatura Nubank", "💳 Fatura BB", "💳 Fatura Mercado Pago", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
     with col_l2_c:
-        # CORREÇÃO AQUI: Deixamos apenas Nubank e BB como opções reais de conta bancária de débito/origem
         banco_movimentado = st.selectbox("Banco Origem/Destino:", ["🟣 Nubank", "🟡 Banco do Brasil"])
         
     st.markdown("<br>", unsafe_allow_html=True)
@@ -454,7 +453,6 @@ if not df_mes.empty:
             "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
             "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Fatura Nubank", "💳 Fatura BB", "💳 Fatura Mercado Pago", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=2),
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1.5),
-            # O Banco no extrato mapeia a conta real usada para pagar (Nubank ou BB)
             "Banco": st.column_config.SelectboxColumn("Banco", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=2),
             "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=2)
         },
