@@ -57,6 +57,10 @@ def save_data(df):
 if 'df' not in st.session_state:
     st.session_state.df = load_data()
 
+# Trava de memória para evitar que meses limpos reimportem gastos fixos apagados
+if 'meses_inicializados' not in st.session_state:
+    st.session_state.meses_inicializados = set()
+
 # --- VARIÁVEIS DE DATA ---
 meses_ano = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 data_hoje = datetime.now()
@@ -111,7 +115,7 @@ if not st.session_state.df.empty:
     descricoes_salvas = st.session_state.df["Descrição"].dropna().unique().tolist()
     itens_ja_usados = sorted([str(d).strip().upper() for d in descricoes_salvas if str(d).strip()])
 
-# --- AUTOMATIZAÇÃO DE GASTOS FIXOS ---
+# --- AUTOMATIZAÇÃO DE GASTOS FIXOS (CORRIGIDA COM TRAVA) ---
 df_geral = st.session_state.df.copy()
 
 def converter_mes_ano_para_data(string_mes_ano):
@@ -129,7 +133,9 @@ data_limite_atual = converter_mes_ano_para_data(mes_selecionado)
 
 df_mes_verificacao = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
-if df_mes_verificacao.empty and not st.session_state.df.empty:
+# Só roda a cópia automática se o mês estiver vazio E nunca tiver sido acessado/limpo nesta sessão
+if df_mes_verificacao.empty and not st.session_state.df.empty and mes_selecionado not in st.session_state.meses_inicializados:
+    st.session_state.meses_inicializados.add(mes_selecionado) # Trava o mês para não repetir o processo
     meses_com_dados = df_geral.dropna(subset=['Mês/Ano'])
     if not meses_com_dados.empty:
         ultimo_mes_com_registro = meses_com_dados.sort_values(by='Data_Ordem', ascending=False).iloc[0]['Mês/Ano']
@@ -153,6 +159,9 @@ if df_mes_verificacao.empty and not st.session_state.df.empty:
             st.session_state.df = pd.concat([st.session_state.df, novos_fixos], ignore_index=True)
             save_data(st.session_state.df)
             st.rerun()
+elif df_mes_verificacao.empty:
+    # Se o mês está vazio porque você limpou voluntariamente, garante que ele permaneça travado
+    st.session_state.meses_inicializados.add(mes_selecionado)
 
 # Filtros e Totais principais
 df_geral = st.session_state.df.copy()
@@ -169,7 +178,7 @@ gastos_extras_passado = df_passado[df_passado['Tipo'] == '🛍️ Gasto Extra'][
 caixinha_passado = df_passado[df_passado['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
 investimentos_passado = df_passado[df_passado['Tipo'].isin(['📈 Investimentos', '🟢 Reposição Reserva'])]['Valor'].sum()
 
-# Essa é a sobra líquida acumulada que veio dos meses anteriores
+# Sobra líquida acumulada que veio dos meses anteriores
 sobra_mes_anterior = entradas_passado - (gastos_fixos_passado + gastos_cartao_passado + gastos_extras_passado + caixinha_passado + investimentos_passado)
 
 # Totais do mês atual
@@ -203,7 +212,7 @@ retiradas_reserva = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '�
 reposicoes_reserva = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '🟢 Reposição Reserva') | ((df_historico_ate_aqui['Tipo'] == '📈 Investimentos') & (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False)))]['Valor'].sum()
 deficit_reserva = retiradas_reserva - reposicoes_reserva
 
-# --- LAYOUT SUPERIOR: DOIS BANCOS PRINCIPAIS CORRIGIDO PARA 2 COLUNAS DE VERDADE ---
+# --- LAYOUT SUPERIOR: DOIS BANCOS PRINCIPAIS ---
 st.markdown("### 🏦 Saldos Disponíveis nos Bancos")
 col_b1, col_b2 = st.columns(2)
 with col_b1:
