@@ -31,6 +31,7 @@ def load_data():
             if "Cartão" not in df.columns:
                 df["Cartão"] = "⚡ Pix"
             
+            # Limpa registros antigos ou nulos migrando para a opção Pix padrão
             if not df.empty and "Cartão" in df.columns:
                 df["Cartão"] = df["Cartão"].fillna("⚡ Pix").replace({
                     "❌ Nenhum": "⚡ Pix", 
@@ -74,7 +75,7 @@ for ano in sorted(anos_disponiveis):
             nome_opcao = f"{mes} / {ano}"
             
             if st.session_state.mes_ativo == nome_opcao:
-                st.sidebar.markdown(
+                st.markdown(
                     f"""
                     <div style="
                         background-color: #10b981; 
@@ -95,7 +96,7 @@ for ano in sorted(anos_disponiveis):
                     unsafe_allow_html=True
                 )
             else:
-                if st.sidebar.button(mes, key=f"btn_{mes}_{ano}", use_container_width=True):
+                if st.button(mes, key=f"btn_{mes}_{ano}", use_container_width=True):
                     st.session_state.mes_ativo = nome_opcao
                     st.rerun()
 
@@ -150,13 +151,12 @@ if df_mes_verificacao.empty and not st.session_state.df.empty:
             save_data(st.session_state.df)
             st.rerun()
 
-# Filtros e Índices dinâmicos
+# Filtros e Totais principais
 df_geral = st.session_state.df.copy()
 df_geral['index_original'] = df_geral.index
 df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
-# --- PROCESSAMENTO DOS TOTAIS (Ignorando a categoria de Transferência na matemática livre) ---
 entradas = df_mes[df_mes['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])]['Valor'].sum()
 gastos_fixos = df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
 gastos_cartao = df_mes[df_mes['Tipo'] == '💳 Cartão de Crédito']['Valor'].sum()
@@ -168,7 +168,7 @@ caixinha_total_acumulada = df_geral[(df_geral['Tipo'] == '✈️ Caixinha Viagem
 saldo_livre = entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investimentos)
 porcentagem_investida = (investimentos / entradas) * 100 if entradas > 0 else 0.0
 
-# --- SALDOS ACUMULADOS INTELIGENTES (Gerenciando as saídas e entradas por Banco) ---
+# --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
 df_historico_ate_aqui = df_geral[df_geral['Data_Ordem'] <= data_limite_atual]
 
 # Nubank
@@ -181,16 +181,16 @@ entradas_bb = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 E
 saidas_bb = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_bb = entradas_bb - saidas_bb
 
-# XP Corretora (Calculada dinamicamente pelo histórico de transferências/aportes recebidos)
-entradas_xp = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva', '📈 Investimentos'])) & (df_historico_ate_aqui['Banco'] == '🔵 XP Corretora')]['Valor'].sum()
-saidas_xp = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '🔄 Transferência entre Contas') & (df_historico_ate_aqui['Banco'] == '🔵 XP Corretora') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
-saldo_xp = entradas_xp - saidas_xp
+# Caixa Econômica (Nova Adição)
+entradas_cx = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🔵 Caixa Econômica')]['Valor'].sum()
+saidas_cx = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🔵 Caixa Econômica') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
+saldo_cx = entradas_cx - saidas_cx
 
 retiradas_reserva = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '🚨 Retirada Reserva') | ((df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False)))]['Valor'].sum()
 reposicoes_reserva = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '🟢 Reposição Reserva') | ((df_historico_ate_aqui['Tipo'] == '📈 Investimentos') & (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False)))]['Valor'].sum()
 deficit_reserva = retiradas_reserva - reposicoes_reserva
 
-# --- LAYOUT SUPERIOR: 3 BANCOS ALINHADOS ---
+# --- LAYOUT SUPERIOR: SALDOS BANCÁRIOS (Dividido em 3 colunas agora) ---
 st.markdown("### 🏦 Saldos Disponíveis nos Bancos")
 col_b1, col_b2, col_b3 = st.columns(3)
 with col_b1:
@@ -198,7 +198,7 @@ with col_b1:
 with col_b2:
     st.markdown(f"""<div style="border: 1px solid #facc15; border-left: 6px solid #facc15; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; text-align: center;"><span style="color: #94a3b8; font-size: 13px; font-weight: bold;">🟡 SALDO BANCO DO BRASIL</span><br><span style="color: #facc15; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_bb:,.2f}</span></div>""", unsafe_allow_html=True)
 with col_b3:
-    st.markdown(f"""<div style="border: 1px solid #0284c7; border-left: 6px solid #0284c7; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; text-align: center;"><span style="color: #94a3b8; font-size: 13px; font-weight: bold;">🔵 SALDO XP CORRETORA</span><br><span style="color: #0284c7; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_xp:,.2f}</span></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div style="border: 1px solid #2563eb; border-left: 6px solid #2563eb; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; text-align: center;"><span style="color: #94a3b8; font-size: 13px; font-weight: bold;">🔵 SALDO CAIXA ECONÔMICA</span><br><span style="color: #2563eb; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_cx:,.2f}</span></div>""", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
@@ -245,19 +245,18 @@ st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 with st.form(key='finance_form', clear_on_submit=True):
     col_l1_a, col_l1_b = st.columns(2)
     with col_l1_a:
-        item_selecionado = st.selectbox("Escolha um gasto da lista:", ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "🔄 TRANSFERÊNCIA ENTRE CONTAS", "🚨 RETIRADA RESERVA", "🟢 REPOSIÇÃO RESERVA", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"])
+        item_selecionado = st.selectbox("Escolha um gasto da lista:", ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "🚨 RETIRADA RESERVA", "🟢 REPOSIÇÃO RESERVA", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"])
     with col_l1_b:
-        descricao_manual = st.text_input("Ou digite um item novo:", placeholder="Ex: TRANSFERENCIA PARA BB, SALÁRIO, ACADEMIA...")
+        descricao_manual = st.text_input("Ou digite um item novo:", placeholder="Ex: NETFLIX, ACADEMIA, SPOTIFY...")
         
     col_l2_a, col_l2_b, col_l2_c, col_l2_d = st.columns(4)
     with col_l2_a:
         valor_texto = st.text_input("Valor do Lançamento (R$):", placeholder="0,00")
     with col_l2_b:
-        # Nova categoria "Transferência entre Contas" adicionada na lista
-        tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🔄 Transferência entre Contas", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
+        tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
     with col_l2_c:
-        # XP Corretora e Caixa integradas nas opções de pagamento/banco origem
-        banco_movimentado = st.selectbox("Opção de Pagamento:", ["🟣 Nubank", "🟡 Banco do Brasil", "🔵 XP Corretora", "🔵 Caixa Econômica"])
+        # Caixa Econômica adicionada nas opções de cadastro
+        banco_movimentado = st.selectbox("Opção de Pagamento:", ["🟣 Nubank", "🟡 Banco do Brasil", "🔵 Caixa Econômica"])
     with col_l2_d:
         cartao_usado = st.selectbox("Cartão / Forma de Movimentação:", ["⚡ Pix", "📄 Boleto", "🔄 Débito Automático", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"])
         
@@ -274,11 +273,11 @@ if submit_button:
     if descricao_manual.strip():
         desc_final = descricao_manual.strip().upper()
     elif item_selecionado != "-- Selecione da lista --":
-        desc_final = item_selecionado.replace("💰 ", "").replace("✈️ ", "").replace("📈 ", "").replace("🚨 ", "").replace("🟢 ", "").replace("🔄 ", "").strip().upper()
+        desc_final = item_selecionado.replace("💰 ", "").replace("✈️ ", "").replace("📈 ", "").replace("🚨 ", "").replace("🟢 ", "").strip().upper()
     else:
         desc_final = tipo.upper()
 
-    status_inicial = "✅ Pago" if tipo in ["💰 Entrada", "🔄 Transferência entre Contas", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "📈 Investimentos"] else "⏳ Pendente"
+    status_inicial = "✅ Pago" if tipo in ["💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "📈 Investimentos"] else "⏳ Pendente"
 
     if desc_final and valor_final > 0:
         nova_linha = {"Descrição": desc_final, "Valor": valor_final, "Tipo": tipo, "Mês/Ano": mes_selecionado, "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"), "Status": status_inicial, "Banco": banco_movimentado, "Cartão": cartao_usado}
@@ -305,10 +304,11 @@ if not df_mes.empty:
             "index_original": None,
             "Descrição": st.column_config.TextColumn("Descrição", required=True, width=2.5),
             "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
-            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🔄 Transferência entre Contas", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
+            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
             "Cartão": st.column_config.SelectboxColumn("Cartão / Canal", options=["⚡ Pix", "📄 Boleto", "🔄 Débito Automático", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"], required=True, width=1.5),
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1),
-            "Banco": st.column_config.SelectboxColumn("Opção de Pagamento", options=["🟣 Nubank", "🟡 Banco do Brasil", "🔵 XP Corretora", "🔵 Caixa Econômica"], required=True, width=1.5),
+            # Caixa Econômica mapeada na lista de Opções de Pagamento do Extrato
+            "Banco": st.column_config.SelectboxColumn("Opção de Pagamento", options=["🟣 Nubank", "🟡 Banco do Brasil", "🔵 Caixa Econômica"], required=True, width=1.5),
             "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=1.5)
         },
         key="editor_extrato"
