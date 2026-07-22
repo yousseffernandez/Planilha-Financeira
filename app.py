@@ -154,19 +154,24 @@ caixinha_total_acumulada = df_geral[
     (df_geral['Data_Ordem'] <= data_limite_atual)
 ]['Valor'].sum()
 
-total_saidas = gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos
-saldo_livre = entradas - total_saidas
+total_saidas = gastos_fixos + gastos_extras + caixinha_mes_atual + investments = investimentos
+saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
-# --- CARDS DE RESUMO EM 5 COLUNAS ---
-col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
+# --- REORGANIZAÇÃO EM 4 COLUNAS EQUILIBRADAS ---
+col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 with col1:
+    cor_saldo_texto = "#10b981" if saldo_livre >= 0 else "#ef4444"
     st.markdown(
         f"""<div style="border: 1px solid #10b981; border-left: 6px solid #10b981; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px;">
-            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">💰 QUANTO ENTROU</span><br>
-            <span style="color: #10b981; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {entradas:,.2f}</span>
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">💰 ENTRADAS & SALDO</span><br>
+            <div style="margin-top: 8px; line-height: 1.5;">
+                <span style="color: #10b981; font-size: 15px; font-weight: 700;">💰 Receita: R$ {entradas:,.2f}</span><br>
+                <span style="color: {cor_saldo_texto}; font-size: 15px; font-weight: 700;">⚖️ Livre: R$ {saldo_livre:,.2f}</span>
+            </div>
         </div>""", unsafe_allow_html=True
     )
+
 with col2:
     st.markdown(
         f"""<div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px;">
@@ -177,26 +182,20 @@ with col2:
             </div>
         </div>""", unsafe_allow_html=True
     )
+
 with col3:
-    cor_status = "#10b981" if saldo_livre >= 0 else "#ef4444"
-    st.markdown(
-        f"""<div style="border: 1px solid {cor_status}; border-left: 6px solid {cor_status}; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px;">
-            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">⚖️ SALDO LIVRE</span><br>
-            <span style="color: {cor_status}; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_livre:,.2f}</span>
-        </div>""", unsafe_allow_html=True
-    )
-with col4:
     st.markdown(
         f"""<div style="border: 1px solid #3b82f6; border-left: 6px solid #3b82f6; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📈 INVESTIMENTOS</span><br>
-            <span style="color: #3b82f6; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {investimentos:,.2f}</span>
+            <span style="color: #3b82f6; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 10px;">R$ {investimentos:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
-with col5:
+
+with col4:
     st.markdown(
         f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">✈️ VALOR NA CAIXINHA</span><br>
-            <span style="color: #f59e0b; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {caixinha_total_acumulada:,.2f}</span>
+            <span style="color: #f59e0b; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 10px;">R$ {caixinha_total_acumulada:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 
