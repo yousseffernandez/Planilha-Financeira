@@ -156,6 +156,7 @@ df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 # --- PROCESSAMENTO DOS TOTAIS DO MÊS ATUAL ---
 entradas = df_mes[df_mes['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])]['Valor'].sum()
 gastos_fixos = df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
+gastos_cartao = df_mes[df_mes['Tipo'] == '💳 Cartão de Crédito']['Valor'].sum()
 gastos_extras = df_mes[df_mes['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
 caixinha_mes_atual = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
 investimentos = df_mes[df_mes['Tipo'].isin(['📈 Investimentos', '🟢 Reposição Reserva'])]['Valor'].sum()
@@ -165,7 +166,7 @@ caixinha_total_acumulada = df_geral[
     (df_geral['Data_Ordem'] <= data_limite_atual)
 ]['Valor'].sum()
 
-saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
+saldo_livre = entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investimentos)
 
 # --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
 df_historico_ate_aqui = df_geral[df_geral['Data_Ordem'] <= data_limite_atual]
@@ -193,7 +194,7 @@ reposicoes_reserva = df_historico_ate_aqui[
 
 deficit_reserva = retiradas_reserva - reposicoes_reserva
 
-# --- CONTÊNERES DO TOPO (ESTÁVEIS E CORRETOS) ---
+# --- CONTÊNERES DO TOPO ---
 st.markdown("### 🏦 Saldos Disponíveis nos Bancos")
 col_b1, col_b2 = st.columns(2)
 
@@ -236,6 +237,7 @@ with col2:
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📊 GASTOS MENSAIS</span>
             <div style="margin-top: 2px; display: flex; flex-direction: column;">
                 <span style="color: #ef4444; font-size: 14px; font-weight: 700;">🏠 Fixos: R$ {gastos_fixos:,.2f}</span>
+                <span style="color: #f43f5e; font-size: 14px; font-weight: 700; padding-top: 1px;">💳 Cartão: R$ {gastos_cartao:,.2f}</span>
                 <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 2px 0;"></div>
                 <span style="color: #cbd5e1; font-size: 14px; font-weight: 700;">🛍️ Extras: R$ {gastos_extras:,.2f}</span>
             </div>
@@ -277,13 +279,13 @@ with col_analise:
         )
 
     if entradas > 0:
-        porcentagem_gasta = ((gastos_fixos + gastos_extras) / entradas) * 100
+        porcentagem_gasta = ((gastos_fixos + gastos_cartao + gastos_extras) / entradas) * 100
         porcentagem_investida = (investimentos / entradas) * 100
         
         if porcentagem_gasta <= 60:
             st.markdown(
                 f"""<div style="border: 1px solid #10b981; border-left: 5px solid #10b981; background-color: #0f172a; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;">
-                    <span style="font-size: 15px; color: #cbd5e1;">🟢 <b>Custo de Vida sob controle:</b> Seus gastos (fixos/extras) consomem <b>{porcentagem_gasta:.1f}%</b> da renda (dentro da meta ideal de 60%).</span>
+                    <span style="font-size: 15px; color: #cbd5e1;">🟢 <b>Custo de Vida sob controle:</b> Seus gastos (fixos/cartão/extras) consomem <b>{porcentagem_gasta:.1f}%</b> da renda (dentro da meta ideal de 60%).</span>
                 </div>""", unsafe_allow_html=True
             )
         else:
@@ -306,9 +308,9 @@ with col_analise:
         
 with col_grafico:
     if entradas > 0:
-        raw_labels = ['🏠 Gastos Fixos', '🛍️ Gastos Extras', '📈 Investimentos', '✈️ Caixinha Viagem', '⚖️ Saldo Livre']
-        valores_pizza = [gastos_fixos, gastos_extras, investimentos, caixinha_mes_atual, max(0, saldo_livre)]
-        cores = ['#ef4444', '#cbd5e1', '#3b82f6', '#f59e0b', '#10b981']
+        raw_labels = ['🏠 Gastos Fixos', '💳 Cartão de Crédito', '🛍️ Gastos Extras', '📈 Investimentos', '✈️ Caixinha Viagem', '⚖️ Saldo Livre']
+        valores_pizza = [gastos_fixos, gastos_cartao, gastos_extras, investimentos, caixinha_mes_atual, max(0, saldo_livre)]
+        cores = ['#ef4444', '#f43f5e', '#cbd5e1', '#3b82f6', '#f59e0b', '#10b981']
         
         labels_filtrados = []
         valores_filtrados = []
@@ -351,9 +353,7 @@ with col_grafico:
 
 st.markdown("---")
 
-
-# --- SEÇÃO COMPACTA ISOLADA (ESTRATÉGIA ANTI-ROLAGEM DO TOPO) ---
-# Usamos st.fragment para fazer com que as interações de cadastro e edição não mexam no scroll da tela
+# --- SEÇÃO COMPACTA ISOLADA COM SUPORTE COMPLETO ANTI-SCROLL ---
 @st.fragment
 def render_interactive_area():
     st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
@@ -369,7 +369,7 @@ def render_interactive_area():
         with col_l2_a:
             valor_texto = st.text_input("Valor do Lançamento (R$):", placeholder="0,00")
         with col_l2_b:
-            tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
+            tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
         with col_l2_c:
             banco_movimentado = st.selectbox("Opção de Pagamento:", ["🟣 Nubank", "🟡 Banco do Brasil"])
         with col_l2_d:
@@ -409,10 +409,12 @@ def render_interactive_area():
                 "Banco": banco_movimentado,
                 "Cartão": cartao_usado
             }
+            # ATUALIZAÇÃO REFINADA: Altera diretamente o state na memória para o editor ler, evitando rerun geral
             df_atual = load_data()
             st.session_state.df = pd.concat([df_atual, pd.DataFrame([nova_linha])], ignore_index=True)
             save_data(st.session_state.df)
             st.success("Adicionado com sucesso!")
+            # O truque anti-pulo: usamos rerun local dentro do escopo do fragmento!
             st.rerun()
         else:
             st.warning("Por favor, preencha a descrição e insira um valor válido.")
@@ -420,7 +422,6 @@ def render_interactive_area():
     st.markdown("---")
     st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
 
-    # Puxa o estado atual dinâmico das linhas para a tabela
     df_visual_geral = st.session_state.df.copy()
     df_visual_geral['index_original'] = df_visual_geral.index
     df_mes_fragment = df_visual_geral[df_visual_geral['Mês/Ano'] == mes_selecionado]
@@ -452,7 +453,7 @@ def render_interactive_area():
                 "index_original": None,
                 "Descrição": st.column_config.TextColumn("Descrição", required=True, width=2.5),
                 "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
-                "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
+                "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
                 "Cartão": st.column_config.SelectboxColumn("Cartão", options=["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"], required=True, width=1.5),
                 "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1),
                 "Banco": st.column_config.SelectboxColumn("Opção de Pagamento", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=1.5),
@@ -461,7 +462,6 @@ def render_interactive_area():
             key="editor_extrato"
         )
         
-        # Exclusão via Fragmento
         if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("deleted_rows"):
             indices_deletados_tela = st.session_state.editor_extrato["deleted_rows"]
             indices_reais_para_deletar = [df_visual.iloc[idx_tela]['index_original'] for idx_tela in indices_deletados_tela]
@@ -470,7 +470,6 @@ def render_interactive_area():
             save_data(df_atualizado)
             st.rerun()
             
-        # Edição via Fragmento
         if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("edited_rows"):
             alteracoes = st.session_state.editor_extrato["edited_rows"]
             df_principal = load_data()
@@ -492,5 +491,5 @@ def render_interactive_area():
             unsafe_allow_html=True
         )
 
-# Executa a renderização da área interativa fragmentada
+# Executa o fragmento isolado de rolagem
 render_interactive_area()
