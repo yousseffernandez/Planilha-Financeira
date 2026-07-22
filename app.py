@@ -156,7 +156,7 @@ caixinha_total_acumulada = df_geral[
 
 saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
-# --- REORGANIZAÇÃO EM 4 COLUNAS EQUILIBRADAS ---
+# --- REORGANIZAÇÃO EM 4 COLUNAS COM DIVISORES ESTRUTURAIS ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 with col1:
@@ -164,9 +164,10 @@ with col1:
     st.markdown(
         f"""<div style="border: 1px solid #10b981; border-left: 6px solid #10b981; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">💰 ENTRADAS & SALDO</span><br>
-            <div style="margin-top: 8px; line-height: 1.5;">
-                <span style="color: #10b981; font-size: 15px; font-weight: 700;">💰 Receita: R$ {entradas:,.2f}</span><br>
-                <span style="color: {cor_saldo_texto}; font-size: 15px; font-weight: 700;">⚖️ Livre: R$ {saldo_livre:,.2f}</span>
+            <div style="margin-top: 6px; display: flex; flex-direction: column;">
+                <span style="color: #10b981; font-size: 18px; font-weight: 700; padding-bottom: 4px;">💰 Receita: R$ {entradas:,.2f}</span>
+                <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 3px 0;"></div>
+                <span style="color: {cor_saldo_texto}; font-size: 18px; font-weight: 700; padding-top: 4px;">⚖️ Livre: R$ {saldo_livre:,.2f}</span>
             </div>
         </div>""", unsafe_allow_html=True
     )
@@ -175,9 +176,10 @@ with col2:
     st.markdown(
         f"""<div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📊 GASTOS MENSAIS</span><br>
-            <div style="margin-top: 8px; line-height: 1.5;">
-                <span style="color: #ef4444; font-size: 15px; font-weight: 700;">🏠 Fixos: R$ {gastos_fixos:,.2f}</span><br>
-                <span style="color: #cbd5e1; font-size: 15px; font-weight: 700;">🛍️ Extras: R$ {gastos_extras:,.2f}</span>
+            <div style="margin-top: 6px; display: flex; flex-direction: column;">
+                <span style="color: #ef4444; font-size: 18px; font-weight: 700; padding-bottom: 4px;">🏠 Fixos: R$ {gastos_fixos:,.2f}</span>
+                <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 3px 0;"></div>
+                <span style="color: #cbd5e1; font-size: 18px; font-weight: 700; padding-top: 4px;">🛍️ Extras: R$ {gastos_extras:,.2f}</span>
             </div>
         </div>""", unsafe_allow_html=True
     )
@@ -186,7 +188,7 @@ with col3:
     st.markdown(
         f"""<div style="border: 1px solid #3b82f6; border-left: 6px solid #3b82f6; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📈 INVESTIMENTOS</span><br>
-            <span style="color: #3b82f6; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 10px;">R$ {investimentos:,.2f}</span>
+            <span style="color: #3b82f6; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 15px;">R$ {investimentos:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 
@@ -194,7 +196,7 @@ with col4:
     st.markdown(
         f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">✈️ VALOR NA CAIXINHA</span><br>
-            <span style="color: #f59e0b; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 10px;">R$ {caixinha_total_acumulada:,.2f}</span>
+            <span style="color: #f59e0b; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 15px;">R$ {caixinha_total_acumulada:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 
@@ -262,13 +264,11 @@ if submit_button:
         nova_linha = {
             "Descrição": desc_final,
             "Valor": valor_final,
-            "Tipo": type(tipo) == str and tipo or "",
+            "Tipo": tipo,
             "Mês/Ano": mes_selecionado,
             "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
             "Status": status_inicial
         }
-        # Correção direta para manter a coluna certa
-        nova_linha["Tipo"] = tipo
         df_atual = load_data()
         st.session_state.df = pd.concat([df_atual, pd.DataFrame([nova_linha])], ignore_index=True)
         save_data(st.session_state.df)
