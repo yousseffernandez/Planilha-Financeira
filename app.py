@@ -156,7 +156,7 @@ caixinha_total_acumulada = df_geral[
 
 saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
-# --- REORGANIZAÇÃO EM 4 COLUNAS COM ALINHAMENTO DA BASE DE TODOS OS CARDS ---
+# --- REORGANIZAÇÃO EM 4 COLUNAS COM DESIGN REFINADO ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 with col1:
@@ -188,7 +188,9 @@ with col3:
     st.markdown(
         f"""<div style="border: 1px solid #3b82f6; border-left: 6px solid #3b82f6; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📈 INVESTIMENTOS</span>
-            <span style="color: #3b82f6; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 25px; padding-bottom: 4px;">R$ {investimentos:,.2f}</span>
+            <div style="flex-grow: 1; display: flex; align-items: center; margin-top: 12px;">
+                <span style="color: #3b82f6; font-size: 24px; font-weight: 800;">R$ {investimentos:,.2f}</span>
+            </div>
         </div>""", unsafe_allow_html=True
     )
 
@@ -196,7 +198,9 @@ with col4:
     st.markdown(
         f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">✈️ VALOR NA CAIXINHA</span>
-            <span style="color: #f59e0b; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 25px; padding-bottom: 4px;">R$ {caixinha_total_acumulada:,.2f}</span>
+            <div style="flex-grow: 1; display: flex; align-items: center; margin-top: 12px;">
+                <span style="color: #f59e0b; font-size: 24px; font-weight: 800;">R$ {caixinha_total_acumulada:,.2f}</span>
+            </div>
         </div>""", unsafe_allow_html=True
     )
 
