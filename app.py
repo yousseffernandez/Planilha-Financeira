@@ -31,7 +31,7 @@ def load_data():
             if "Cartão" not in df.columns:
                 df["Cartão"] = "❌ Nenhum (Pix/Débito)"
             
-            # Padroniza a string antiga do CSV para bater com as opções do menu da tabela
+            # Garante que dados antigos curtos sejam lidos sem quebrar o editor
             if not df.empty and "Cartão" in df.columns:
                 df["Cartão"] = df["Cartão"].replace({"❌ Nenhum": "❌ Nenhum (Pix/Débito)"})
                 
@@ -146,19 +146,11 @@ if df_mes_verificacao.empty and not st.session_state.df.empty:
             save_data(st.session_state.df)
             st.rerun()
 
-# Atualiza filtros globais
+# Filtros e Totais principais
 df_geral = st.session_state.df.copy()
 df_geral['index_original'] = df_geral.index
-if "Status" not in df_geral.columns:
-    df_geral["Status"] = "⏳ Pendente"
-if "Banco" not in df_geral.columns:
-    df_geral["Banco"] = "🟣 Nubank"
-if "Cartão" not in df_geral.columns:
-    df_geral["Cartão"] = "❌ Nenhum (Pix/Débito)"
-df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
-# --- PROCESSAMENTO DOS TOTAIS ---
 entradas = df_mes[df_mes['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])]['Valor'].sum()
 gastos_fixos = df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
 gastos_cartao = df_mes[df_mes['Tipo'] == '💳 Cartão de Crédito']['Valor'].sum()
@@ -166,17 +158,10 @@ gastos_extras = df_mes[df_mes['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
 caixinha_mes_atual = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
 investimentos = df_mes[df_mes['Tipo'].isin(['📈 Investimentos', '🟢 Reposição Reserva'])]['Valor'].sum()
 
-caixinha_total_acumulada = df_geral[
-    (df_geral['Tipo'] == '✈️ Caixinha Viagem') & 
-    (df_geral['Data_Ordem'] <= data_limite_atual)
-]['Valor'].sum()
-
+caixinha_total_acumulada = df_geral[(df_geral['Tipo'] == '✈️ Caixinha Viagem') & (df_geral['Data_Ordem'] <= data_limite_atual)]['Valor'].sum()
 saldo_livre = entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investimentos)
-
-# CORREÇÃO DO NAMEERROR: Criando o cálculo da variável que faltou na análise de Saúde Financeira
 porcentagem_investida = (investimentos / entradas) * 100 if entradas > 0 else 0.0
 
-# --- SALDOS BANCÁRIOS ACUMULADOS ---
 df_historico_ate_aqui = df_geral[df_geral['Data_Ordem'] <= data_limite_atual]
 entradas_nu = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟣 Nubank')]['Valor'].sum()
 saidas_nu = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟣 Nubank') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
@@ -237,101 +222,100 @@ with col_grafico:
 
 st.markdown("---")
 
-# --- INTERACTIVE AREA (FRAGMENT) ---
-@st.fragment
-def render_interactive_area():
-    st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
-    
-    with st.form(key='finance_form', clear_on_submit=True):
-        col_l1_a, col_l1_b = st.columns(2)
-        with col_l1_a:
-            item_selecionado = st.selectbox("Escolha um gasto da lista:", ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "🚨 RETIRADA RESERVA", "🟢 REPOSIÇÃO RESERVA", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"])
-        with col_l1_b:
-            descricao_manual = st.text_input("Ou digite um item novo:", placeholder="Ex: NETFLIX, ACADEMIA, SPOTIFY...")
-            
-        col_l2_a, col_l2_b, col_l2_c, col_l2_d = st.columns(4)
-        with col_l2_a:
-            valor_texto = st.text_input("Valor do Lançamento (R$):", placeholder="0,00")
-        with col_l2_b:
-            tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
-        with col_l2_c:
-            banco_movimentado = st.selectbox("Opção de Pagamento:", ["🟣 Nubank", "🟡 Banco do Brasil"])
-        with col_l2_d:
-            cartao_usado = st.selectbox("Cartão Utilizado:", ["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"])
-            
-        st.markdown("<br>", unsafe_allow_html=True)
-        submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
+# --- FORMULÁRIO DE CADASTRO PRINCIPAL ---
+st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
-    if submit_button:
-        try:
-            valor_limpo = valor_texto.replace("R$", "").replace(".", "").replace(",", ".").strip()
-            valor_final = float(valor_limpo) if valor_limpo else 0.0
-        except ValueError:
-            valor_final = 0.0
-
-        if descricao_manual.strip():
-            desc_final = descricao_manual.strip().upper()
-        elif item_selecionado != "-- Selecione da lista --":
-            desc_final = item_selecionado.replace("💰 ", "").replace("✈️ ", "").replace("📈 ", "").replace("🚨 ", "").replace("🟢 ", "").strip().upper()
-        else:
-            desc_final = tipo.upper()
-
-        status_inicial = "✅ Pago" if tipo in ["💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "📈 Investimentos"] else "⏳ Pendente"
-
-        if desc_final and valor_final > 0:
-            nova_linha = {"Descrição": desc_final, "Valor": valor_final, "Tipo": tipo, "Mês/Ano": mes_selecionado, "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"), "Status": status_inicial, "Banco": banco_movimentado, "Cartão": cartao_usado}
-            st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([nova_linha])], ignore_index=True)
-            save_data(st.session_state.df)
-            st.success("Adicionado!")
-            st.rerun()
-        else:
-            st.warning("Por favor, preencha a descrição e insira um valor válido.")
-
-    st.markdown("---")
-    st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
-
-    df_visual_geral = st.session_state.df.copy()
-    df_visual_geral['index_original'] = df_visual_geral.index
-    df_mes_fragment = df_visual_geral[df_visual_geral['Mês/Ano'] == mes_selecionado]
-
-    if not df_mes_fragment.empty:
-        df_visual = df_mes_fragment[["index_original", "Descrição", "Valor", "Tipo", "Cartão", "Status", "Banco", "Data Registro"]].copy()
-        df_visual = df_visual.sort_values(by="Descrição", key=lambda col: col.str.lower(), ascending=True).reset_index(drop=True)
+with st.form(key='finance_form', clear_on_submit=True):
+    col_l1_a, col_l1_b = st.columns(2)
+    with col_l1_a:
+        item_selecionado = st.selectbox("Escolha um gasto da lista:", ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "🚨 RETIRADA RESERVA", "🟢 REPOSIÇÃO RESERVA", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"])
+    with col_l1_b:
+        descricao_manual = st.text_input("Ou digite um item novo:", placeholder="Ex: NETFLIX, ACADEMIA, SPOTIFY...")
         
-        tabela_editada = st.data_editor(
-            df_visual,
-            hide_index=True,
-            use_container_width=True,
-            num_rows="dynamic",
-            column_config={
-                "index_original": None,
-                "Descrição": st.column_config.TextColumn("Descrição", required=True, width=2.5),
-                "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
-                "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
-                "Cartão": st.column_config.SelectboxColumn("Cartão", options=["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"], required=True, width=1.5),
-                "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1),
-                "Banco": st.column_config.SelectboxColumn("Opção de Pagamento", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=1.5),
-                "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=1.5)
-            },
-            key="editor_extrato"
-        )
+    col_l2_a, col_l2_b, col_l2_c, col_l2_d = st.columns(4)
+    with col_l2_a:
+        valor_texto = st.text_input("Valor do Lançamento (R$):", placeholder="0,00")
+    with col_l2_b:
+        tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
+    with col_l2_c:
+        banco_movimentado = st.selectbox("Opção de Pagamento:", ["🟣 Nubank", "🟡 Banco do Brasil"])
+    with col_l2_d:
+        cartao_usado = st.selectbox("Cartão Utilizado:", ["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"])
         
-        if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("deleted_rows"):
-            indices_deletados = st.session_state.editor_extrato["deleted_rows"]
-            reais_deletar = [df_visual.iloc[idx]['index_original'] for idx in indices_deletados]
-            st.session_state.df = st.session_state.df.drop(reais_deletar).reset_index(drop=True)
-            save_data(st.session_state.df)
-            st.rerun()
-            
-        if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("edited_rows"):
-            alteracoes = st.session_state.editor_extrato["edited_rows"]
-            for idx_tela, colunas in alteracoes.items():
-                idx_real = df_visual.iloc[int(idx_tela)]['index_original']
-                for col_nome, novo_val in colunas.items():
-                    st.session_state.df.at[idx_real, col_nome] = novo_val
-                    st.session_state.df.at[idx_real, 'Data Registro'] = datetime.now().strftime("%d/%m/%Y %H:%M")
-            save_data(st.session_state.df)
+    st.markdown("<br>", unsafe_allow_html=True)
+    submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
+
+if submit_button:
+    try:
+        valor_limpo = valor_texto.replace("R$", "").replace(".", "").replace(",", ".").strip()
+        valor_final = float(valor_limpo) if valor_limpo else 0.0
+    except ValueError:
+        valor_final = 0.0
+
+    if descricao_manual.strip():
+        desc_final = descricao_manual.strip().upper()
+    elif item_selecionado != "-- Selecione da lista --":
+        desc_final = item_selecionado.replace("💰 ", "").replace("✈️ ", "").replace("📈 ", "").replace("🚨 ", "").replace("🟢 ", "").strip().upper()
     else:
-        st.markdown('<div style="text-align: center; color: #cbd5e1;">Nenhum lançamento cadastrado.</div>', unsafe_allow_html=True)
+        desc_final = tipo.upper()
 
-render_interactive_area()
+    status_inicial = "✅ Pago" if tipo in ["💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "📈 Investimentos"] else "⏳ Pendente"
+
+    if desc_final and valor_final > 0:
+        nova_linha = {"Descrição": desc_final, "Valor": valor_final, "Tipo": tipo, "Mês/Ano": mes_selecionado, "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"), "Status": status_inicial, "Banco": banco_movimentado, "Cartão": cartao_usado}
+        st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([nova_linha])], ignore_index=True)
+        save_data(st.session_state.df)
+        st.success("Adicionado!")
+        st.rerun()
+
+st.markdown("---")
+
+# --- EXTRATO COMPLETO (CORRIGIDO: ACUTA CONFORME O CLIQUE E NÃO PULA O SCROLL) ---
+st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
+
+if not df_mes.empty:
+    df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Cartão", "Status", "Banco", "Data Registro"]].copy()
+    df_visual = df_visual.sort_values(by="Descrição", key=lambda col: col.str.lower(), ascending=True).reset_index(drop=True)
+    
+    tabela_editada = st.data_editor(
+        df_visual,
+        hide_index=True,
+        use_container_width=True,
+        num_rows="dynamic",
+        column_config={
+            "index_original": None,
+            "Descrição": st.column_config.TextColumn("Descrição", required=True, width=2.5),
+            "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
+            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
+            "Cartão": st.column_config.SelectboxColumn("Cartão", options=["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"], required=True, width=1.5),
+            "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1),
+            "Banco": st.column_config.SelectboxColumn("Opção de Pagamento", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=1.5),
+            "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=1.5)
+        },
+        key="editor_extrato"
+    )
+    
+    # Processa exclusões com rerun síncrono estável
+    if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("deleted_rows"):
+        indices_deletados = st.session_state.editor_extrato["deleted_rows"]
+        reais_deletar = [df_visual.iloc[idx]['index_original'] for idx in indices_deletados]
+        st.session_state.df = st.session_state.df.drop(reais_deletar).reset_index(drop=True)
+        save_data(st.session_state.df)
+        st.rerun()
+        
+    # Processa edições com rerun estável (Salva na hora e o Streamlit segura o foco da linha modificada)
+    if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("edited_rows"):
+        alteracoes = st.session_state.editor_extrato["edited_rows"]
+        df_principal = load_data()
+        
+        for idx_tela, colunas in alteracoes.items():
+            idx_real = df_visual.iloc[int(idx_tela)]['index_original']
+            for col_nome, novo_val in colunas.items():
+                df_principal.at[idx_real, col_nome] = novo_val
+                df_principal.at[idx_real, 'Data Registro'] = datetime.now().strftime("%d/%m/%Y %H:%M")
+                
+        st.session_state.df = df_principal
+        save_data(df_principal)
+        st.rerun()
+else:
+    st.markdown('<div style="text-align: center; color: #cbd5e1;">Nenhum lançamento cadastrado.</div>', unsafe_allow_html=True)
