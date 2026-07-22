@@ -193,7 +193,7 @@ reposicoes_reserva = df_historico_ate_aqui[
 
 deficit_reserva = retiradas_reserva - reposicoes_reserva
 
-# --- LINHA SUPERIOR: SALDOS BANCÁRIOS ---
+# --- CONTÊNERES DO TOPO (ESTÁVEIS E CORRETOS) ---
 st.markdown("### 🏦 Saldos Disponíveis nos Bancos")
 col_b1, col_b2 = st.columns(2)
 
@@ -215,7 +215,6 @@ with col_b2:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- REORGANIZAÇÃO EM 4 COLUNAS ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 with col1:
@@ -232,14 +231,13 @@ with col1:
     )
 
 with col2:
-    # CORRIGIDO: Removida a linha do "Cartão" desse card HTML para evitar o NameError e manter o visual clássico alinhado
     st.markdown(
         f"""<div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 10px 15px; border-radius: 12px; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📊 GASTOS MENSAIS</span>
             <div style="margin-top: 2px; display: flex; flex-direction: column;">
-                <span style="color: #ef4444; font-size: 17px; font-weight: 700; padding-bottom: 2px;">🏠 Fixos: R$ {gastos_fixos:,.2f}</span>
-                <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 3px 0;"></div>
-                <span style="color: #cbd5e1; font-size: 17px; font-weight: 700; padding-top: 2px;">🛍️ Extras: R$ {gastos_extras:,.2f}</span>
+                <span style="color: #ef4444; font-size: 14px; font-weight: 700;">🏠 Fixos: R$ {gastos_fixos:,.2f}</span>
+                <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 2px 0;"></div>
+                <span style="color: #cbd5e1; font-size: 14px; font-weight: 700;">🛍️ Extras: R$ {gastos_extras:,.2f}</span>
             </div>
         </div>""", unsafe_allow_html=True
     )
@@ -266,9 +264,8 @@ with col4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- SEÇÃO INTELIGENTE: SAÚDE FINANCEIRA ---
+# --- SAÚDE FINANCEIRA ---
 st.markdown("### 📊 Saúde Financeira")
-
 col_analise, col_grafico = st.columns([1.2, 1])
 
 with col_analise:
@@ -295,12 +292,11 @@ with col_analise:
                     <span style="font-size: 15px; color: #cbd5e1;">🔴 <b>Custo de Vida alto:</b> Seus custos gerais já comprometeram <b>{porcentagem_gasta:.1f}%</b> da sua renda!</span>
                 </div>""", unsafe_allow_html=True
             )
-            
-        st.markdown(
-            f"""<div style="border: 1px solid #3b82f6; border-left: 3px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;">
-                <span style="font-size: 15px; color: #cbd5e1;">📊 <b>Aporte Patrimonial:</b> Você separou <b>{porcentagem_investida:.1f}%</b> da sua receita para Investimentos neste mês.</span>
-            </div>""", unsafe_allow_html=True
-        )
+            st.markdown(
+                f"""<div style="border: 1px solid #3b82f6; border-left: 3px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;">
+                    <span style="font-size: 15px; color: #cbd5e1;">📊 <b>Aporte Patrimonial:</b> Você separou <b>{porcentagem_investida:.1f}%</b> da sua receita para Investimentos neste mês.</span>
+                </div>""", unsafe_allow_html=True
+            )
     else:
         st.markdown(
             """<div style="border: 1px solid #3b82f6; border-left: 3px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;">
@@ -355,152 +351,146 @@ with col_grafico:
 
 st.markdown("---")
 
-# --- FORMULÁRIO COMPACTO ---
-st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
-opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "🚨 RETIRADA RESERVA", "🟢 REPOSIÇÃO RESERVA", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"]
-
-with st.form(key='finance_form', clear_on_submit=True):
-    col_l1_a, col_l1_b = st.columns(2)
-    with col_l1_a:
-        item_selecionado = st.selectbox("Escolha um gasto da lista:", opcoes_selectbox)
-    with col_l1_b:
-        descricao_manual = st.text_input("Ou digite um item novo:", placeholder="Ex: NETFLIX, ACADEMIA, SPOTIFY...")
-        
-    col_l2_a, col_l2_b, col_l2_c, col_l2_d = st.columns(4)
-    with col_l2_a:
-        valor_texto = st.text_input("Valor do Lançamento (R$):", placeholder="0,00")
-    with col_l2_b:
-        tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
-    with col_l2_c:
-        # Texto atualizado conforme sugerido por você!
-        banco_movimentado = st.selectbox("Opção de Pagamento:", ["🟣 Nubank", "🟡 Banco do Brasil"])
-    with col_l2_d:
-        cartao_usado = st.selectbox("Cartão Utilizado:", ["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"])
-        
-    st.markdown("<br>", unsafe_allow_html=True)
-    submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
-
-if submit_button:
-    try:
-        valor_limpo = valor_texto.replace("R$", "").replace(".", "").replace(",", ".").strip()
-        valor_final = float(valor_limpo) if valor_limpo else 0.0
-    except ValueError:
-        valor_final = 0.0
-
-    if descricao_manual.strip():
-        desc_final = descricao_manual.strip().upper()
-    elif item_selecionado != "-- Selecione da lista --":
-        desc_final = item_selecionado.replace("💰 ", "").replace("✈️ ", "").replace("📈 ", "").replace("🚨 ", "").replace("🟢 ", "").strip().upper()
-    elif tipo == "🚨 Retirada Reserva":
-        desc_final = "RETIRADA RESERVA"
-    elif tipo == "🟢 Reposição Reserva":
-        desc_final = "REPOSIÇÃO RESERVA"
-    else:
-        desc_final = None
-
-    status_inicial = "✅ Pago" if tipo in ["💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "📈 Investimentos"] else "⏳ Pendente"
-
-    if desc_final and valor_final > 0:
-        nova_linha = {
-            "Descrição": desc_final,
-            "Valor": valor_final,
-            "Tipo": tipo,
-            "Mês/Ano": mes_selecionado,
-            "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
-            "Status": status_inicial,
-            "Banco": banco_movimentado,
-            "Cartão": cartao_usado
-        }
-        df_atual = load_data()
-        st.session_state.df = pd.concat([df_atual, pd.DataFrame([nova_linha])], ignore_index=True)
-        save_data(st.session_state.df)
-        st.success("Adicionado com sucesso!")
-        st.rerun()
-    else:
-        st.warning("Por favor, preencha a descrição e insira um valor válido.")
-
-st.markdown("---")
-
-# --- EXTRATO MENSAL INTERATIVO ---
-st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
-
-if not df_mes.empty:
-    df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Cartão", "Status", "Banco", "Data Registro"]].copy()
-    df_visual = df_visual.sort_values(by="Descrição", key=lambda col: col.str.lower(), ascending=True)
-    df_visual = df_visual.reset_index(drop=True)
+# --- SEÇÃO COMPACTA ISOLADA (ESTRATÉGIA ANTI-ROLAGEM DO TOPO) ---
+# Usamos st.fragment para fazer com que as interações de cadastro e edição não mexam no scroll da tela
+@st.fragment
+def render_interactive_area():
+    st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
     
-    def colorir_linhas(row):
-        styles = [''] * len(row)
-        if row['Status'] == '⏳ Pendente':
-            styles = ['background-color: #451c1c; color: #fca5a5; font-weight: normal;'] * len(row)
+    with st.form(key='finance_form', clear_on_submit=True):
+        col_l1_a, col_l1_b = st.columns(2)
+        with col_l1_a:
+            item_selecionado = st.selectbox("Escolha um gasto da lista:", ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "🚨 RETIRADA RESERVA", "🟢 REPOSIÇÃO RESERVA", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"])
+        with col_l1_b:
+            descricao_manual = st.text_input("Ou digite um item novo:", placeholder="Ex: NETFLIX, ACADEMIA, SPOTIFY...")
+            
+        col_l2_a, col_l2_b, col_l2_c, col_l2_d = st.columns(4)
+        with col_l2_a:
+            valor_texto = st.text_input("Valor do Lançamento (R$):", placeholder="0,00")
+        with col_l2_b:
+            tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
+        with col_l2_c:
+            banco_movimentado = st.selectbox("Opção de Pagamento:", ["🟣 Nubank", "🟡 Banco do Brasil"])
+        with col_l2_d:
+            cartao_usado = st.selectbox("Cartão Utilizado:", ["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"])
+            
+        st.markdown("<br>", unsafe_allow_html=True)
+        submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
+
+    if submit_button:
+        try:
+            valor_limpo = valor_texto.replace("R$", "").replace(".", "").replace(",", ".").strip()
+            valor_final = float(valor_limpo) if valor_limpo else 0.0
+        except ValueError:
+            valor_final = 0.0
+
+        if descricao_manual.strip():
+            desc_final = descricao_manual.strip().upper()
+        elif item_selecionado != "-- Selecione da lista --":
+            desc_final = item_selecionado.replace("💰 ", "").replace("✈️ ", "").replace("📈 ", "").replace("🚨 ", "").replace("🟢 ", "").strip().upper()
+        elif tipo == "🚨 Retirada Reserva":
+            desc_final = "RETIRADA RESERVA"
+        elif tipo == "🟢 Reposição Reserva":
+            desc_final = "REPOSIÇÃO RESERVA"
         else:
-            if row['Tipo'] in ['💰 Entrada', 'Entrada', '🚨 Retirada Reserva']:
-                styles = ['background-color: #064e3b; color: #34d399; font-weight: bold;'] * len(row)
-            elif row['Tipo'] in ['✈️ Caixinha Viagem', 'Caixinha Viagem']:
-                styles = ['background-color: #451a03; color: #fbbf24; font-weight: bold;'] * len(row)
-            elif row['Tipo'] in ['📈 Investimentos', 'Investimentos', '🟢 Reposição Reserva']:
-                styles = ['background-color: #1e3a8a; color: #60a5fa; font-weight: bold;'] * len(row)
-        return styles
+            desc_final = None
 
-    st.markdown(
-        """
-        <style>
-            div[data-testid="stDataEditor"] div div div div div div div div div {
-                text-align: center !important;
-                justify-content: center !important;
+        status_inicial = "✅ Pago" if tipo in ["💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "📈 Investimentos"] else "⏳ Pendente"
+
+        if desc_final and valor_final > 0:
+            nova_linha = {
+                "Descrição": desc_final,
+                "Valor": valor_final,
+                "Tipo": tipo,
+                "Mês/Ano": mes_selecionado,
+                "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                "Status": status_inicial,
+                "Banco": banco_movimentado,
+                "Cartão": cartao_usado
             }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+            df_atual = load_data()
+            st.session_state.df = pd.concat([df_atual, pd.DataFrame([nova_linha])], ignore_index=True)
+            save_data(st.session_state.df)
+            st.success("Adicionado com sucesso!")
+            st.rerun()
+        else:
+            st.warning("Por favor, preencha a descrição e insira um valor válido.")
 
-    tabela_editada = st.data_editor(
-        df_visual.style.apply(colorir_linhas, axis=1),
-        hide_index=True,
-        use_container_width=True,
-        num_rows="dynamic",
-        column_config={
-            "index_original": None,
-            "Descrição": st.column_config.TextColumn("Descrição", required=True, width=2.5),
-            "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
-            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
-            "Cartão": st.column_config.SelectboxColumn("Cartão", options=["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"], required=True, width=1.5),
-            "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1),
-            # Cabeçalho atualizado conforme sugerido por você!
-            "Banco": st.column_config.SelectboxColumn("Opção de Pagamento", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=1.5),
-            "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=1.5)
-        },
-        key="editor_extrato"
-    )
-    
-    # Exclusão
-    if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("deleted_rows"):
-        indices_deletados_tela = st.session_state.editor_extrato["deleted_rows"]
-        indices_reais_para_deletar = [df_visual.iloc[idx_tela]['index_original'] for idx_tela in indices_deletados_tela]
-        df_atualizado = load_data().drop(indices_reais_para_deletar).reset_index(drop=True)
-        st.session_state.df = df_atualizado
-        save_data(df_atualizado)
-        st.rerun()
+    st.markdown("---")
+    st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
+
+    # Puxa o estado atual dinâmico das linhas para a tabela
+    df_visual_geral = st.session_state.df.copy()
+    df_visual_geral['index_original'] = df_visual_geral.index
+    df_mes_fragment = df_visual_geral[df_visual_geral['Mês/Ano'] == mes_selecionado]
+
+    if not df_mes_fragment.empty:
+        df_visual = df_mes_fragment[["index_original", "Descrição", "Valor", "Tipo", "Cartão", "Status", "Banco", "Data Registro"]].copy()
+        df_visual = df_visual.sort_values(by="Descrição", key=lambda col: col.str.lower(), ascending=True)
+        df_visual = df_visual.reset_index(drop=True)
         
-    # Edição Celular
-    if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("edited_rows"):
-        alteracoes = st.session_state.editor_extrato["edited_rows"]
-        df_principal = load_data()
+        def colorir_linhas(row):
+            styles = [''] * len(row)
+            if row['Status'] == '⏳ Pendente':
+                styles = ['background-color: #451c1c; color: #fca5a5; font-weight: normal;'] * len(row)
+            else:
+                if row['Tipo'] in ['💰 Entrada', 'Entrada', '🚨 Retirada Reserva']:
+                    styles = ['background-color: #064e3b; color: #34d399; font-weight: bold;'] * len(row)
+                elif row['Tipo'] in ['✈️ Caixinha Viagem', 'Caixinha Viagem']:
+                    styles = ['background-color: #451a03; color: #fbbf24; font-weight: bold;'] * len(row)
+                elif row['Tipo'] in ['📈 Investimentos', 'Investimentos', '🟢 Reposição Reserva']:
+                    styles = ['background-color: #1e3a8a; color: #60a5fa; font-weight: bold;'] * len(row)
+            return styles
+
+        tabela_editada = st.data_editor(
+            df_visual.style.apply(colorir_linhas, axis=1),
+            hide_index=True,
+            use_container_width=True,
+            num_rows="dynamic",
+            column_config={
+                "index_original": None,
+                "Descrição": st.column_config.TextColumn("Descrição", required=True, width=2.5),
+                "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
+                "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
+                "Cartão": st.column_config.SelectboxColumn("Cartão", options=["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"], required=True, width=1.5),
+                "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1),
+                "Banco": st.column_config.SelectboxColumn("Opção de Pagamento", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=1.5),
+                "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=1.5)
+            },
+            key="editor_extrato"
+        )
         
-        for idx_tela, colunas_alteradas in alteracoes.items():
-            idx_real = df_visual.iloc[int(idx_tela)]['index_original']
-            for nome_coluna, novo_valor in colunas_alteradas.items():
-                df_principal.at[idx_real, nome_coluna] = novo_valor
-                df_principal.at[idx_real, 'Data Registro'] = datetime.now().strftime("%d/%m/%Y %H:%M")
-                
-        st.session_state.df = df_principal
-        save_data(df_principal)
-        st.rerun()
-else:
-    st.markdown(
-        """<div style="padding: 10px; border-radius: 5px; background-color: rgba(255, 255, 255, 0.05); text-align: center; color: #cbd5e1;">
-            Nenhum lançamento cadastrado para este mês.
-        </div>""",
-        unsafe_allow_html=True
-    )
+        # Exclusão via Fragmento
+        if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("deleted_rows"):
+            indices_deletados_tela = st.session_state.editor_extrato["deleted_rows"]
+            indices_reais_para_deletar = [df_visual.iloc[idx_tela]['index_original'] for idx_tela in indices_deletados_tela]
+            df_atualizado = load_data().drop(indices_reais_para_deletar).reset_index(drop=True)
+            st.session_state.df = df_atualizado
+            save_data(df_atualizado)
+            st.rerun()
+            
+        # Edição via Fragmento
+        if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("edited_rows"):
+            alteracoes = st.session_state.editor_extrato["edited_rows"]
+            df_principal = load_data()
+            
+            for idx_tela, colunas_alteradas in alteracoes.items():
+                idx_real = df_visual.iloc[int(idx_tela)]['index_original']
+                for nome_coluna, novo_valor in colunas_alteradas.items():
+                    df_principal.at[idx_real, nome_coluna] = novo_valor
+                    df_principal.at[idx_real, 'Data Registro'] = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    
+            st.session_state.df = df_principal
+            save_data(df_principal)
+            st.rerun()
+    else:
+        st.markdown(
+            """<div style="padding: 10px; border-radius: 5px; background-color: rgba(255, 255, 255, 0.05); text-align: center; color: #cbd5e1;">
+                Nenhum lançamento cadastrado para este mês.
+            </div>""",
+            unsafe_allow_html=True
+        )
+
+# Executa a renderização da área interativa fragmentada
+render_interactive_area()
