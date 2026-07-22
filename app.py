@@ -197,7 +197,7 @@ with col3:
 with col4:
     st.markdown(
         f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
-            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">✈️ VALOR NA CAIXINHA</span>
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">✈️ CAIXINHA VIAGEM</span>
             <div style="flex-grow: 1; display: flex; align-items: center; margin-top: 12px;">
                 <span style="color: #f59e0b; font-size: 24px; font-weight: 800;">R$ {caixinha_total_acumulada:,.2f}</span>
             </div>
