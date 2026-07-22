@@ -133,7 +133,7 @@ data_limite_atual = converter_mes_ano_para_data(mes_selecionado)
 
 df_mes_verificacao = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
-if df_mes_verificacao.empty and not st.session_state.df.empty and mes_selecionado not in st.session_state.meses_inicializados:
+if df_mes_verificacao.empty && not st.session_state.df.empty && mes_selecionado not in st.session_state.meses_inicializados:
     st.session_state.meses_inicializados.add(mes_selecionado)
     meses_com_dados = df_geral.dropna(subset=['Mês/Ano'])
     if not meses_com_dados.empty:
@@ -170,7 +170,6 @@ df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 # --- INTEGRAÇÃO DA SOBRA AUTOMÁTICA COM RESET ANTES DE JULHO/2026 ---
 data_corte_reset = datetime(2026, 7, 1)
 
-# Filtramos apenas o histórico que está entre Julho de 2026 e o mês selecionado atual
 df_passado = df_geral[(df_geral['Data_Ordem'] < data_limite_atual) & (df_geral['Data_Ordem'] >= data_corte_reset)]
 
 if not df_passado.empty:
@@ -185,7 +184,6 @@ if not df_passado.empty:
 else:
     sobra_mes_anterior = 0.0
 
-# Se o mês ativo selecionado for igual ou anterior a Julho de 2026, a sobra passada dele obrigatoriamente deve ser zero
 if data_limite_atual <= data_corte_reset:
     sobra_mes_anterior = 0.0
 
@@ -199,7 +197,7 @@ investimentos = df_mes[df_mes['Tipo'].isin(['📈 Investimentos', '🟢 Reposiç
 
 caixinha_total_acumulada = df_geral[(df_geral['Tipo'] == '✈️ Caixinha Viagem') & (df_geral['Data_Ordem'] <= data_limite_atual)]['Valor'].sum()
 
-# Saldo livre final corrigido com o reset do bug
+# Saldo livre final corrigido
 saldo_livre = sobra_mes_anterior + entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investimentos)
 porcentagem_investida = (investimentos / entradas) * 100 if entradas > 0 else 0.0
 
@@ -300,19 +298,22 @@ with col_grafico:
         raw_labels = ['🏠 Gastos Fixos', '🛍️ Gastos Extras', '⚖️ Saldo Livre']
         valores_pizza = [gastos_fixos + gastos_cartao, gastos_extras, max(0, saldo_livre)]
         
+        # AJUSTADO: A cor do texto central e as fatias mudam dinamicamente se o saldo livre for negativo
+        cor_centro_grafico = "#10b981" if saldo_livre >= 0 else "#ef4444"
+        
         fig = go.Figure(data=[go.Pie(
             labels=raw_labels, 
             values=valores_pizza, 
             hole=.55, 
             textinfo='none', 
-            marker=dict(colors=['#ef4444', '#cbd5e1', '#10b981'])
+            marker=dict(colors=['#ef4444', '#cbd5e1', '#10b981' if saldo_livre >= 0 else '#1e293b']) # Se negativo, a fatia livre some
         )])
         fig.update_layout(
             margin=dict(t=15, b=15, l=15, r=15), 
             paper_bgcolor='rgba(0,0,0,0)', 
             plot_bgcolor='rgba(0,0,0,0)', 
             height=250, 
-            annotations=[dict(text=f"Livre<br><b style='font-size:15px;color:#10b981;'>R$ {saldo_livre:,.2f}</b>", x=0.5, y=0.5, font=dict(size=12, color='#94a3b8'), showarrow=False, align="center")]
+            annotations=[dict(text=f"Livre<br><b style='font-size:15px;color:{cor_centro_grafico};'>R$ {saldo_livre:,.2f}</b>", x=0.5, y=0.5, font=dict(size=12, color='#94a3b8'), showarrow=False, align="center")]
         )
         st.plotly_chart(fig, use_container_width=True)
 
