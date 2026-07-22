@@ -162,13 +162,16 @@ caixinha_total_acumulada = df_geral[
 
 saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
-# --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
+# --- CORREÇÃO DA LÓGICA DE SALDO BANCÁRIO ACUMULADO ---
+# Considera o histórico completo de movimentações até o mês visualizado
 df_historico_ate_aqui = df_geral[df_geral['Data_Ordem'] <= data_limite_atual]
 
+# Nubank: Entradas (Salário/Pix recebidos) menos as Saídas que já foram DE FATO PAGAS (✅ Pago)
 entradas_nu_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟣 Nubank')]['Valor'].sum()
 saidas_nu_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] != '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟣 Nubank') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_nu = entradas_nu_acumulado - saidas_nu_acumulado
 
+# Banco do Brasil: Entradas menos as Saídas que já foram DE FATO PAGAS (✅ Pago)
 entradas_bb_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil')]['Valor'].sum()
 saidas_bb_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] != '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_bb = entradas_bb_acumulado - saidas_bb_acumulado
@@ -245,7 +248,7 @@ with col4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- SEÇÃO INTELIGENTE: SAÚDE FINANCEIRA COM LEGENDA EM PORCENTAGEM ---
+# --- SEÇÃO INTELIGENTE: SAÚDE FINANCEIRA COM PIZZA INTERATIVA ---
 st.markdown("### 📊 Saúde Financeira")
 if entradas > 0:
     porcentagem_gasta = ((gastos_fixos + gastos_extras) / entradas) * 100
@@ -291,11 +294,8 @@ if entradas > 0:
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             showlegend=True,
-            # MODIFICAÇÃO: Aumentada a fonte da legenda para 16px para ficar bem visível
-            legend=dict(
-                font=dict(color='#cbd5e1', size=16)
-            ),
-            height=300 # Aumentado um pouco a altura para acomodar a legenda maior confortavelmente
+            legend=dict(font=dict(color='#cbd5e1', size=16)),
+            height=300
         )
         st.plotly_chart(fig, use_container_width=True)
 else:
