@@ -51,7 +51,8 @@ if 'mes_ativo' not in st.session_state:
 # --- NAVEGAÇÃO NA SIDEBAR ---
 st.sidebar.title("📅 Histórico Financeiro")
 
-anos_disponiveis = [ano_atual - 1, ano_atual]
+anos_disponiveis = [ano_atual - 1, 
+                    ano_atual]
 
 for ano in sorted(anos_disponiveis):
     esta_aberto = (ano == ano_atual)
@@ -60,7 +61,6 @@ for ano in sorted(anos_disponiveis):
             nome_opcao = f"{mes} / {ano}"
             
             if st.session_state.mes_ativo == nome_opcao:
-                # Se for o mês ativo, renderiza um botão colorido diretamente usando HTML/CSS nativo
                 st.markdown(
                     f"""
                     <div style="
@@ -82,7 +82,6 @@ for ano in sorted(anos_disponiveis):
                     unsafe_allow_html=True
                 )
             else:
-                # Se não for o ativo, usa o botão padrão cinza do Streamlit
                 if st.button(mes, key=f"btn_{mes}_{ano}", use_container_width=True):
                     st.session_state.mes_ativo = nome_opcao
                     st.rerun()
@@ -164,38 +163,39 @@ col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
 
 with col1:
     st.markdown(
-        f"""<div style="border: 1px solid #10b981; border-left: 6px solid #10b981; background-color: #0f172a; padding: 15px; border-radius: 12px;">
+        f"""<div style="border: 1px solid #10b981; border-left: 6px solid #10b981; background-color: #0f172a; padding: 15px; border-radius: 12px; height: 110px;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">💰 QUANTO ENTROU</span><br>
-            <span style="color: #10b981; font-size: 22px; font-weight: 800;">R$ {entradas:,.2f}</span>
+            <span style="color: #10b981; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {entradas:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 with col2:
     st.markdown(
-        f"""<div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 15px; border-radius: 12px;">
+        f"""<div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; height: 110px;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📉 TOTAL ALOCADO</span><br>
-            <span style="color: #ef4444; font-size: 22px; font-weight: 800;">R$ {total_saidas:,.2f}</span>
+            <span style="color: #ef4444; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 2px;">R$ {total_saidas:,.2f}</span><br>
+            <span style="color: #cbd5e1; font-size: 11px; font-weight: 500;">🏠 Fixos: R$ {gastos_fixos:,.2f} | 🛍️ Extras: R$ {gastos_extras:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 with col3:
     cor_status = "#10b981" if saldo_livre >= 0 else "#ef4444"
     st.markdown(
-        f"""<div style="border: 1px solid {cor_status}; border-left: 6px solid {cor_status}; background-color: #0f172a; padding: 15px; border-radius: 12px;">
+        f"""<div style="border: 1px solid {cor_status}; border-left: 6px solid {cor_status}; background-color: #0f172a; padding: 15px; border-radius: 12px; height: 110px;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">⚖️ SALDO LIVRE</span><br>
-            <span style="color: {cor_status}; font-size: 22px; font-weight: 800;">R$ {saldo_livre:,.2f}</span>
+            <span style="color: {cor_status}; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_livre:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 with col4:
     st.markdown(
-        f"""<div style="border: 1px solid #3b82f6; border-left: 6px solid #3b82f6; background-color: #0f172a; padding: 15px; border-radius: 12px;">
+        f"""<div style="border: 1px solid #3b82f6; border-left: 6px solid #3b82f6; background-color: #0f172a; padding: 15px; border-radius: 12px; height: 110px;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📈 INVESTIMENTOS</span><br>
-            <span style="color: #3b82f6; font-size: 22px; font-weight: 800;">R$ {investimentos:,.2f}</span>
+            <span style="color: #3b82f6; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {investimentos:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 with col5:
     st.markdown(
-        f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 15px; border-radius: 12px;">
+        f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 15px; border-radius: 12px; height: 110px;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">✈️ VALOR NA CAIXINHA</span><br>
-            <span style="color: #f59e0b; font-size: 22px; font-weight: 800;">R$ {caixinha_total_acumulada:,.2f}</span>
+            <span style="color: #f59e0b; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {caixinha_total_acumulada:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 
