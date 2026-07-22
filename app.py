@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit st
 import pandas as pd
 from datetime import datetime
 import os
@@ -69,7 +69,7 @@ if 'mes_ativo' not in st.session_state:
 # --- NAVEGAÇÃO NA SIDEBAR ---
 st.sidebar.title("📅 Histórico Financeiro")
 
-anos_disponiveis = [ano_atual - 1, ano_atual]
+anos_disponiveis = [ano_atual - 1, year_atual] # ano_atual
 
 for ano in sorted(anos_disponiveis):
     esta_aberto = (ano == ano_atual)
@@ -179,12 +179,12 @@ entradas_nu = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 E
 saidas_nu = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟣 Nubank') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_nu = entradas_nu - saidas_nu
 
-# Banco do Brasil
+# Banco do Brasil (CORRIGIDO!)
 entradas_bb = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil')]['Valor'].sum()
-saidas_bb = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
+saidas_bb = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_bb = entradas_bb - saidas_bb
 
-# Caixa Econômica (Nova Adição)
+# Caixa Econômica
 entradas_cx = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🔵 Caixa Econômica')]['Valor'].sum()
 saidas_cx = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🔵 Caixa Econômica') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_cx = entradas_cx - saidas_cx
@@ -193,7 +193,7 @@ retiradas_reserva = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '�
 reposicoes_reserva = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '🟢 Reposição Reserva') | ((df_historico_ate_aqui['Tipo'] == '📈 Investimentos') & (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False)))]['Valor'].sum()
 deficit_reserva = retiradas_reserva - reposicoes_reserva
 
-# --- LAYOUT SUPERIOR: SALDOS BANCÁRIOS (Dividido em 3 colunas agora) ---
+# --- LAYOUT SUPERIOR: SALDOS BANCÁRIOS ---
 st.markdown("### 🏦 Saldos Disponíveis nos Bancos")
 col_b1, col_b2, col_b3 = st.columns(3)
 with col_b1:
@@ -260,7 +260,6 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l2_c:
         banco_movimentado = st.selectbox("Opção de Pagamento:", ["🟣 Nubank", "🟡 Banco do Brasil", "🔵 Caixa Econômica"])
     with col_l2_d:
-        # ALTERADO: Emojis ajustados para o símbolo de cartão (💳) nos bancos apenas nesta lista
         cartao_usado = st.selectbox("Cartão / Forma de Movimentação:", ["⚡ Pix", "📄 Boleto", "🔄 Débito Automático", "💳 Nubank", "💳 Banco do Brasil", "💳 Mercado Pago"])
         
     st.markdown("<br>", unsafe_allow_html=True)
@@ -308,10 +307,7 @@ if not df_mes.empty:
             "Descrição": st.column_config.TextColumn("Descrição", required=True, width=2.5),
             "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
             "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
-            
-            # ALTERADO: Emojis ajustados para o símbolo de cartão (💳) nos bancos apenas nesta coluna da tabela
             "Cartão": st.column_config.SelectboxColumn("Cartão / Canal", options=["⚡ Pix", "📄 Boleto", "🔄 Débito Automático", "💳 Nubank", "💳 Banco do Brasil", "💳 Mercado Pago"], required=True, width=1.5),
-            
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1),
             "Banco": st.column_config.SelectboxColumn("Opção de Pagamento", options=["🟣 Nubank", "🟡 Banco do Brasil", "🔵 Caixa Econômica"], required=True, width=1.5),
             "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=1.5)
