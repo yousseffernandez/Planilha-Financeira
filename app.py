@@ -54,7 +54,7 @@ if 'mes_ativo' not in st.session_state:
 # --- NAVEGAÇÃO NA SIDEBAR ---
 st.sidebar.title("📅 Histórico Financeiro")
 
-anos_disponiveis = [ano_atual - 1, year_atual] if 'year_atual' in locals() else [ano_atual - 1, ano_atual]
+anos_disponiveis = [ano_atual - 1, ano_atual]
 
 for ano in sorted(anos_disponiveis):
     esta_aberto = (ano == ano_atual)
@@ -262,28 +262,26 @@ if entradas > 0:
         st.info(f"📊 **Aporte Patrimonial:** Você separou **{porcentagem_investida:.1f}%** da sua receita para Investimentos neste mês.")
         
     with col_grafico:
-        # CONSTRUÇÃO DO GRÁFICO DE PIZZA DINÂMICO
         labels = ['🏠 Gastos Fixos', '🛍️ Gastos Extras', '📈 Investimentos', '✈️ Caixinha Viagem', '⚖️ Saldo Livre']
         valores = [gastos_fixos, gastos_extras, investimentos, caixinha_mes_atual, max(0, saldo_livre)]
         cores = ['#ef4444', '#cbd5e1', '#3b82f6', '#f59e0b', '#10b981']
         
-        # Filtra categorias zeradas para não poluir a legenda
         labels_filtrados = [l for l, v in zip(labels, valores) if v > 0]
         valores_filtrados = [v for v in valores if v > 0]
         cores_filtradas = [c for c, v in zip(cores, valores) if v > 0]
         
+        # AJUSTE NO GRÁFICO: Ocultamos os rótulos de texto estáticos vazados da rosca e deixamos as informações completas no balão ao passar o mouse (hover)
         fig = go.Figure(data=[go.Pie(
             labels=labels_filtrados, 
             values=valores_filtrados, 
             hole=.4,
             marker=dict(colors=cores_filtradas),
-            textinfo='percent+value',
-            texttemplate='%{percent:.1%}<br>R$ %{value:,.2f}',
-            insidetextorientation='radial'
+            textinfo='none',  # Remove o texto por cima que ficava quebrado/cortado
+            hovertemplate='<b>%{label}</b><br>Valor: R$ %{value:,.2f}<br>Proporção: %{percent}<extra></extra>'
         )])
         
         fig.update_layout(
-            margin=dict(t=10, b=10, l=10, r=10),
+            margin=dict(t=25, b=25, l=25, r=25), # Dá mais respiro para as bordas
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             showlegend=True,
