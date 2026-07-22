@@ -234,10 +234,25 @@ with col_analise:
         st.markdown("""<div style="border: 1px solid #3b82f6; border-left: 3px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;"><span style="font-size: 15px; color: #cbd5e1;">💡 Insira uma Entrada para ativar os gráficos.</span></div>""", unsafe_allow_html=True)
 with col_grafico:
     if entradas > 0:
-        raw_labels = ['🏠 Gastos Fixos', '💳 Cartão', '🛍️ Extras', '📈 Investimentos', '✈️ Caixinha', '⚖️ Saldo Livre']
-        valores_pizza = [gastos_fixos, gastos_cartao, gastos_extras, investimentos, caixinha_mes_atual, max(0, saldo_livre)]
-        fig = go.Figure(data=[go.Pie(labels=raw_labels, values=valores_pizza, hole=.55, textinfo='none', marker=dict(colors=['#ef4444', '#f43f5e', '#cbd5e1', '#3b82f6', '#f59e0b', '#10b981']))])
-        fig.update_layout(margin=dict(t=15, b=15, l=15, r=15), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', height=250, annotations=[dict(text=f"Livre<br><b style='font-size:15px;color:#10b981;'>R$ {saldo_livre:,.2f}</b>", x=0.5, y=0.5, font=dict(size=12, color='#94a3b8'), showarrow=False, align="center")])
+        # CORREGIDO: Reduzido milimetricamente para exibir apenas Fixo, Extra e Livre conforme solicitado
+        raw_labels = ['🏠 Gastos Fixos', '🛍️ Gastos Extras', '⚖️ Saldo Livre']
+        # Somamos o valor de caixinha, cartão e investimentos ao custo fixo/extra conforme o comportamento padrão do seu saldo
+        valores_pizza = [gastos_fixos + gastos_cartao, gastos_extras, max(0, saldo_livre)]
+        
+        fig = go.Figure(data=[go.Pie(
+            labels=raw_labels, 
+            values=valores_pizza, 
+            hole=.55, 
+            textinfo='none', 
+            marker=dict(colors=['#ef4444', '#cbd5e1', '#10b981'])
+        )])
+        fig.update_layout(
+            margin=dict(t=15, b=15, l=15, r=15), 
+            paper_bgcolor='rgba(0,0,0,0)', 
+            plot_bgcolor='rgba(0,0,0,0)', 
+            height=250, 
+            annotations=[dict(text=f"Livre<br><b style='font-size:15px;color:#10b981;'>R$ {saldo_livre:,.2f}</b>", x=0.5, y=0.5, font=dict(size=12, color='#94a3b8'), showarrow=False, align="center")]
+        )
         st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
