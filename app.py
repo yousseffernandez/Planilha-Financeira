@@ -111,7 +111,8 @@ data_limite_atual = converter_mes_ano_para_data(mes_selecionado)
 
 df_mes_verificacao = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
-if df_mes_verificacao.empty smash not st.session_state.df.empty:
+# CORREÇÃO DA LINHA 114: Removido o 'smash' e colocado o 'and' correto
+if df_mes_verificacao.empty and not st.session_state.df.empty:
     meses_com_dados = df_geral.dropna(subset=['Mês/Ano'])
     if not meses_com_dados.empty:
         ultimo_mes_com_registro = meses_com_dados.sort_values(by='Data_Ordem', ascending=False).iloc[0]['Mês/Ano']
@@ -319,7 +320,6 @@ if not df_mes.empty:
         unsafe_allow_html=True
     )
 
-    # REMOVIDO: O 'alignment="center"' que quebrava nas colunas incompatíveis
     tabela_editada = st.data_editor(
         df_visual.style.apply(colorir_linhas, axis=1),
         hide_index=True,
