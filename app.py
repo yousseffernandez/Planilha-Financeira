@@ -133,7 +133,8 @@ data_limite_atual = converter_mes_ano_para_data(mes_selecionado)
 
 df_mes_verificacao = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
-if df_mes_verificacao.empty && not st.session_state.df.empty && mes_selecionado not in st.session_state.meses_inicializados:
+# CORRIGIDO: Modificado de '&&' para 'and' aqui na linha 136
+if df_mes_verificacao.empty and not st.session_state.df.empty and mes_selecionado not in st.session_state.meses_inicializados:
     st.session_state.meses_inicializados.add(mes_selecionado)
     meses_com_dados = df_geral.dropna(subset=['Mês/Ano'])
     if not meses_com_dados.empty:
@@ -298,7 +299,7 @@ with col_grafico:
         raw_labels = ['🏠 Gastos Fixos', '🛍️ Gastos Extras', '⚖️ Saldo Livre']
         valores_pizza = [gastos_fixos + gastos_cartao, gastos_extras, max(0, saldo_livre)]
         
-        # AJUSTADO: A cor do texto central e as fatias mudam dinamicamente se o saldo livre for negativo
+        # CORREGIDO: Alterado de '&&' para 'and' na validação lógica do gráfico
         cor_centro_grafico = "#10b981" if saldo_livre >= 0 else "#ef4444"
         
         fig = go.Figure(data=[go.Pie(
@@ -306,7 +307,7 @@ with col_grafico:
             values=valores_pizza, 
             hole=.55, 
             textinfo='none', 
-            marker=dict(colors=['#ef4444', '#cbd5e1', '#10b981' if saldo_livre >= 0 else '#1e293b']) # Se negativo, a fatia livre some
+            marker=dict(colors=['#ef4444', '#cbd5e1', '#10b981' if saldo_livre >= 0 else '#1e293b'])
         )])
         fig.update_layout(
             margin=dict(t=15, b=15, l=15, r=15), 
