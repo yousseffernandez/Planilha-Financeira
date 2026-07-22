@@ -115,7 +115,7 @@ if not st.session_state.df.empty:
     descricoes_salvas = st.session_state.df["Descrição"].dropna().unique().tolist()
     itens_ja_usados = sorted([str(d).strip().upper() for d in descricoes_salvas if str(d).strip()])
 
-# --- AUTOMATIZAÇÃO DE GASTOS FIXOS (CORRIGIDA COM TRAVA) ---
+# --- AUTOMATIZAÇÃO DE GASTOS FIXOS ---
 df_geral = st.session_state.df.copy()
 
 def converter_mes_ano_para_data(string_mes_ano):
@@ -133,9 +133,8 @@ data_limite_atual = converter_mes_ano_para_data(mes_selecionado)
 
 df_mes_verificacao = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
-# Só roda a cópia automática se o mês estiver vazio E nunca tiver sido acessado/limpo nesta sessão
 if df_mes_verificacao.empty and not st.session_state.df.empty and mes_selecionado not in st.session_state.meses_inicializados:
-    st.session_state.meses_inicializados.add(mes_selecionado) # Trava o mês para não repetir o processo
+    st.session_state.meses_inicializados.add(mes_selecionado)
     meses_com_dados = df_geral.dropna(subset=['Mês/Ano'])
     if not meses_com_dados.empty:
         ultimo_mes_com_registro = meses_com_dados.sort_values(by='Data_Ordem', ascending=False).iloc[0]['Mês/Ano']
@@ -160,7 +159,6 @@ if df_mes_verificacao.empty and not st.session_state.df.empty and mes_selecionad
             save_data(st.session_state.df)
             st.rerun()
 elif df_mes_verificacao.empty:
-    # Se o mês está vazio porque você limpou voluntariamente, garante que ele permaneça travado
     st.session_state.meses_inicializados.add(mes_selecionado)
 
 # Filtros e Totais principais
@@ -169,17 +167,27 @@ df_geral['index_original'] = df_geral.index
 df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
-# --- INTEGRAÇÃO DA SOBRA AUTOMÁTICA DO MÊS PASSADO ---
-df_passado = df_geral[df_geral['Data_Ordem'] < data_limite_atual]
-entradas_passado = df_passado[df_passado['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])]['Valor'].sum()
-gastos_fixos_passado = df_passado[df_passado['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
-gastos_cartao_passado = df_passado[df_passado['Tipo'] == '💳 Cartão de Crédito']['Valor'].sum()
-gastos_extras_passado = df_passado[df_passado['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
-caixinha_passado = df_passado[df_passado['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
-investimentos_passado = df_passado[df_passado['Tipo'].isin(['📈 Investimentos', '🟢 Reposição Reserva'])]['Valor'].sum()
+# --- INTEGRAÇÃO DA SOBRA AUTOMÁTICA COM RESET ANTES DE JULHO/2026 ---
+data_corte_reset = datetime(2026, 7, 1)
 
-# Sobra líquida acumulada que veio dos meses anteriores
-sobra_mes_anterior = entradas_passado - (gastos_fixos_passado + gastos_cartao_passado + gastos_extras_passado + caixinha_passado + investimentos_passado)
+# Filtramos apenas o histórico que está entre Julho de 2026 e o mês selecionado atual
+df_passado = df_geral[(df_geral['Data_Ordem'] < data_limite_atual) & (df_geral['Data_Ordem'] >= data_corte_reset)]
+
+if not df_passado.empty:
+    entradas_passado = df_passado[df_passado['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])]['Valor'].sum()
+    gastos_fixos_passado = df_passado[df_passado['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
+    gastos_cartao_passado = df_passado[df_passado['Tipo'] == '💳 Cartão de Crédito']['Valor'].sum()
+    gastos_extras_passado = df_passado[df_passado['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
+    caixinha_passado = df_passado[df_passado['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
+    investimentos_passado = df_passado[df_passado['Tipo'].isin(['📈 Investimentos', '🟢 Reposição Reserva'])]['Valor'].sum()
+    
+    sobra_mes_anterior = entradas_passado - (gastos_fixos_passado + gastos_cartao_passado + gastos_extras_passado + caixinha_passado + investimentos_passado)
+else:
+    sobra_mes_anterior = 0.0
+
+# Se o mês ativo selecionado for igual ou anterior a Julho de 2026, a sobra passada dele obrigatoriamente deve ser zero
+if data_limite_atual <= data_corte_reset:
+    sobra_mes_anterior = 0.0
 
 # Totais do mês atual
 entradas = df_mes[df_mes['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])]['Valor'].sum()
@@ -191,7 +199,7 @@ investimentos = df_mes[df_mes['Tipo'].isin(['📈 Investimentos', '🟢 Reposiç
 
 caixinha_total_acumulada = df_geral[(df_geral['Tipo'] == '✈️ Caixinha Viagem') & (df_geral['Data_Ordem'] <= data_limite_atual)]['Valor'].sum()
 
-# Saldo livre inclui a sobra herdada do passado
+# Saldo livre final corrigido com o reset do bug
 saldo_livre = sobra_mes_anterior + entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investimentos)
 porcentagem_investida = (investimentos / entradas) * 100 if entradas > 0 else 0.0
 
