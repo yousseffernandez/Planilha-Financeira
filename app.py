@@ -156,7 +156,7 @@ caixinha_total_acumulada = df_geral[
 
 saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
-# --- REORGANIZAÇÃO EM 4 COLUNAS COM DESIGN REFINADO ---
+# --- REORGANIZAÇÃO EM 4 COLUNAS ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 with col1:
@@ -289,7 +289,7 @@ st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
 if not df_mes.empty:
     df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Status", "Data Registro"]].copy()
     
-    # Ordenação alfabética automática
+    # Ordenação alfabética
     df_visual = df_visual.sort_values(by="Descrição", key=lambda col: col.str.lower(), ascending=True)
     
     def colorir_linhas(row):
@@ -305,17 +305,17 @@ if not df_mes.empty:
                 styles = ['background-color: #1e3a8a; color: #60a5fa; font-weight: bold;'] * len(row)
         return styles
 
-    # CORREÇÃO DEFINITIVA: Ocultando o índice numérico indesejado da esquerda
+    # AVISO TÉCNICO: Descrição, Categorias e Status não aceitam centralização nativa no Streamlit
     tabela_editada = st.data_editor(
         df_visual.style.apply(colorir_linhas, axis=1),
-        hide_index=True,  # Força o sumiço da coluna de números da esquerda
+        hide_index=True,
         use_container_width=True,
         num_rows="dynamic",
         column_config={
             "index_original": None,
-            # Proporções numéricas eliminam o espaço vazio da direita de forma elástica
             "Descrição": st.column_config.TextColumn("Descrição", required=True, width=320),
-            "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=110),
+            # MODIFICAÇÃO: Inserida a centralização na coluna de dinheiro
+            "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=110, alignment="center"),
             "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=160),
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=120),
             "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=160)
