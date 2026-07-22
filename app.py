@@ -156,14 +156,14 @@ caixinha_total_acumulada = df_geral[
 
 saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
-# --- REORGANIZAÇÃO EM 4 COLUNAS COM DIVISORES ESTRUTURAIS ---
+# --- REORGANIZAÇÃO EM 4 COLUNAS COM ALINHAMENTO DA BASE DE TODOS OS CARDS ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 with col1:
     cor_saldo_texto = "#10b981" if saldo_livre >= 0 else "#ef4444"
     st.markdown(
-        f"""<div style="border: 1px solid #10b981; border-left: 6px solid #10b981; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px;">
-            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">💰 ENTRADAS & SALDO</span><br>
+        f"""<div style="border: 1px solid #10b981; border-left: 6px solid #10b981; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">💰 ENTRADAS & SALDO</span>
             <div style="margin-top: 6px; display: flex; flex-direction: column;">
                 <span style="color: #10b981; font-size: 18px; font-weight: 700; padding-bottom: 4px;">💰 Receita: R$ {entradas:,.2f}</span>
                 <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 3px 0;"></div>
@@ -174,8 +174,8 @@ with col1:
 
 with col2:
     st.markdown(
-        f"""<div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px;">
-            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📊 GASTOS MENSAIS</span><br>
+        f"""<div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📊 GASTOS MENSAIS</span>
             <div style="margin-top: 6px; display: flex; flex-direction: column;">
                 <span style="color: #ef4444; font-size: 18px; font-weight: 700; padding-bottom: 4px;">🏠 Fixos: R$ {gastos_fixos:,.2f}</span>
                 <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 3px 0;"></div>
@@ -186,17 +186,17 @@ with col2:
 
 with col3:
     st.markdown(
-        f"""<div style="border: 1px solid #3b82f6; border-left: 6px solid #3b82f6; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px;">
-            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📈 INVESTIMENTOS</span><br>
-            <span style="color: #3b82f6; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 15px;">R$ {investimentos:,.2f}</span>
+        f"""<div style="border: 1px solid #3b82f6; border-left: 6px solid #3b82f6; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📈 INVESTIMENTOS</span>
+            <span style="color: #3b82f6; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 25px; padding-bottom: 4px;">R$ {investimentos:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 
 with col4:
     st.markdown(
-        f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px;">
-            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">✈️ VALOR NA CAIXINHA</span><br>
-            <span style="color: #f59e0b; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 15px;">R$ {caixinha_total_acumulada:,.2f}</span>
+        f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">✈️ VALOR NA CAIXINHA</span>
+            <span style="color: #f59e0b; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 25px; padding-bottom: 4px;">R$ {caixinha_total_acumulada:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
 
