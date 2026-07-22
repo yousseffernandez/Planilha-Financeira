@@ -50,6 +50,22 @@ if 'mes_ativo' not in st.session_state:
 
 # --- NAVEGAÇÃO NA SIDEBAR ---
 st.sidebar.title("📅 Histórico Financeiro")
+
+# Injeção de CSS para mudar a cor do botão ativo (Verde Neon) na barra lateral
+st.sidebar.markdown(
+    """
+    <style>
+    div[data-testid="stButton"] button:active,
+    div[data-testid="stButton"] button:focus,
+    div[data-testid="stButton"] button p:contains("[") {
+        color: #10b981 !important;
+        font-weight: bold !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 anos_disponiveis = [ano_atual - 1, ano_atual]
 
 for ano in sorted(anos_disponiveis):
@@ -57,7 +73,8 @@ for ano in sorted(anos_disponiveis):
     with st.sidebar.expander(f"📁 Ano {ano}", expanded=esta_aberto):
         for mes in meses_ano:
             nome_opcao = f"{mes} / {ano}"
-            label_botao = f"📌 {mes}" if st.session_state.mes_ativo == nome_opcao else mes
+            # Se for o mês ativo, envolve entre colchetes e deixa em caixa alta para destaque visual limpo
+            label_botao = f"[ {mes.upper()} ]" if st.session_state.mes_ativo == nome_opcao else mes
             if st.button(label_botao, key=f"btn_{mes}_{ano}", use_container_width=True):
                 st.session_state.mes_ativo = nome_opcao
                 st.rerun()
@@ -86,36 +103,32 @@ def converter_mes_ano_para_data(string_mes_ano):
 df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 data_limite_atual = converter_mes_ano_para_data(mes_selecionado)
 
-# Verifica se o mês atual selecionado está completamente sem registros
 df_mes_verificacao = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
 if df_mes_verificacao.empty and not st.session_state.df.empty:
-    # Descobre qual foi o último mês que teve qualquer dado registrado no sistema
     meses_com_dados = df_geral.dropna(subset=['Mês/Ano'])
     if not meses_com_dados.empty:
         ultimo_mes_com_registro = meses_com_dados.sort_values(by='Data_Ordem', ascending=False).iloc[0]['Mês/Ano']
         
-        # Filtra apenas os Gastos Fixos desse último mês operacional
         df_fixos_anterior = df_geral[
             (df_geral['Mês/Ano'] == ultimo_mes_com_registro) & 
             (df_geral['Tipo'] == '🏠 Gasto Fixo')
         ].copy()
         
         if not df_fixos_anterior.empty:
-            # Cria a cópia desses gastos fixos apontando para o novo mês selecionado
             novos_fixos = pd.DataFrame({
                 "Descrição": df_fixos_anterior["Descrição"],
                 "Valor": df_fixos_anterior["Valor"],
                 "Tipo": "🏠 Gasto Fixo",
                 "Mês/Ano": mes_selecionado,
                 "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                "Status": "⏳ Pendente"  # Entra como pendente para você ir pagando no mês novo
+                "Status": "⏳ Pendente"
             })
             st.session_state.df = pd.concat([st.session_state.df, novos_fixos], ignore_index=True)
             save_data(st.session_state.df)
             st.rerun()
 
-# Atualiza os filtros após a possível automação de cópia
+# Atualiza os filtros após processamento
 df_geral = st.session_state.df.copy()
 df_geral['index_original'] = df_geral.index
 if "Status" not in df_geral.columns:
@@ -173,7 +186,7 @@ with col4:
 with col5:
     st.markdown(
         f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 15px; border-radius: 12px;">
-            <span style="color: #94a3b8; font-size: 12px; font-weight: bold; letter-spacing: 0.5px;">✈️ TOTAL NA CAIXINHA</span><br>
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">✈️ VALOR NA CAIXINHA</span><br>
             <span style="color: #f59e0b; font-size: 22px; font-weight: 800;">R$ {caixinha_total_acumulada:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
@@ -259,7 +272,6 @@ st.markdown("---")
 
 # --- EXTRATO MENSAL INTERATIVO ---
 st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
-st.caption("✏️ **Dica:** Modifique valores ou mude o status para '✅ Pago' dando dois cliques diretamente na tabela.")
 
 if not df_mes.empty:
     df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Status", "Data Registro"]].copy()
