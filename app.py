@@ -149,7 +149,8 @@ df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
 # --- PROCESSAMENTO DOS TOTAIS DO MÊS ATUAL ---
-entradas = df_mes[df_mes['Tipo'] == '💰 Entrada']['Valor'].sum()
+# Entradas somam tanto receitas normais quanto retiradas da reserva
+entradas = df_mes[df_mes['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])]['Valor'].sum()
 gastos_fixos = df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
 gastos_extras = df_mes[df_mes['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
 caixinha_mes_atual = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
@@ -165,20 +166,24 @@ saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + in
 # --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
 df_historico_ate_aqui = df_geral[df_geral['Data_Ordem'] <= data_limite_atual]
 
-entradas_nu_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟣 Nubank')]['Valor'].sum()
-saidas_nu_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] != '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟣 Nubank') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
+# Nubank
+entradas_nu_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟣 Nubank')]['Valor'].sum()
+saidas_nu_acumulado = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟣 Nubank') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_nu = entradas_nu_acumulado - saidas_nu_acumulado
 
-entradas_bb_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil')]['Valor'].sum()
-saidas_bb_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] != '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
+# Banco do Brasil
+entradas_bb_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil')]['Valor'].sum()
+saidas_bb_acumulado = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_bb = entradas_bb_acumulado - saidas_bb_acumulado
 
 # --- INTELIGÊNCIA BANCÁRIA: RESERVA DE EMERGÊNCIA ACUMULADA ---
+# Retiradas: Qualquer registro marcado explicitamente como '🚨 Retirada Reserva' OU contendo 'RESERVA' nas Entradas antigas
 retiradas_reserva = df_historico_ate_aqui[
-    (df_historico_ate_aqui['Tipo'] == '💰 Entrada') & 
-    (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False))
+    (df_historico_ate_aqui['Tipo'] == '🚨 Retirada Reserva') | 
+    ((df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False)))
 ]['Valor'].sum()
 
+# Reposições: Qualquer registro do tipo Investimentos contendo "RESERVA" na descrição
 reposicoes_reserva = df_historico_ate_aqui[
     (df_historico_ate_aqui['Tipo'] == '📈 Investimentos') & 
     (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False))
@@ -186,7 +191,7 @@ reposicoes_reserva = df_historico_ate_aqui[
 
 deficit_reserva = retiradas_reserva - reposicoes_reserva
 
-# --- LINHA SUPERIOR: SALDOS BANCÁRIOS (CORRIGIDO HTML <br>) ---
+# --- LINHA SUPERIOR: SALDOS BANCÁRIOS ---
 st.markdown("### 🏦 Saldos Disponíveis nos Bancos")
 col_b1, col_b2 = st.columns(2)
 
@@ -295,14 +300,15 @@ if entradas > 0:
         
     with col_grafico:
         raw_labels = ['🏠 Gastos Fixos', '🛍️ Gastos Extras', '📈 Investimentos', '✈️ Caixinha Viagem', '⚖️ Saldo Livre']
-        valores = [gastos_fixos, gastos_extras, investimentos, caixinha_mes_atual, max(0, saldo_livre)]
+        # Removemos o valor de retirada da pizza para não distorcer as fatias de gastos de verdade
+        valores_pizza = [gastos_fixos, gastos_extras, investimentos, caixinha_mes_atual, max(0, saldo_livre)]
         cores = ['#ef4444', '#cbd5e1', '#3b82f6', '#f59e0b', '#10b981']
         
         labels_filtrados = []
         valores_filtrados = []
         cores_filtradas = []
         
-        for l, v, c in zip(raw_labels, valores, cores):
+        for l, v, c in zip(raw_labels, valores_pizza, cores):
             if v > 0:
                 pct = (v / entradas) * 100
                 labels_filtrados.append(f"{l} ({pct:.1f}%)")
@@ -339,7 +345,7 @@ st.markdown("---")
 # --- FORMULÁRIO COMPACTO ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
-opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"]
+opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "🚨 RETIRADA RESERVA", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"]
 
 with st.form(key='finance_form', clear_on_submit=True):
     col_l1_a, col_l1_b = st.columns(2)
@@ -352,7 +358,8 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l2_a:
         valor_texto = st.text_input("Valor do Lançamento (R$):", placeholder="0,00")
     with col_l2_b:
-        tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem", "📈 Investimentos"])
+        # CATEGORIA MODIFICADA AQUI: Adicionada a opção expressa da Reserva
+        tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
     with col_l2_c:
         banco_movimentado = st.selectbox("Banco Origem/Destino:", ["🟣 Nubank", "🟡 Banco do Brasil"])
         
@@ -369,14 +376,14 @@ if submit_button:
     if descricao_manual.strip():
         desc_final = descricao_manual.strip().upper()
     elif item_selecionado != "-- Selecione da lista --":
-        if "💰" in item_selecionado or "✈️" in item_selecionado or "📈" in item_selecionado:
-            desc_final = item_selecionado.replace("💰 ", "").replace("✈️ ", "").replace("📈 ", "").strip()
+        if "💰" in item_selecionado or "✈️" in item_selecionado or "📈" in item_selecionado or "🚨" in item_selecionado:
+            desc_final = item_selecionado.replace("💰 ", "").replace("✈️ ", "").replace("📈 ", "").replace("🚨 ", "").strip()
         else:
             desc_final = item_selecionado
     else:
         desc_final = None
 
-    status_inicial = "✅ Pago" if tipo in ["💰 Entrada", "📈 Investimentos"] else "⏳ Pendente"
+    status_inicial = "✅ Pago" if tipo in ["💰 Entrada", "🚨 Retirada Reserva", "📈 Investimentos"] else "⏳ Pendente"
 
     if desc_final and valor_final > 0:
         nova_linha = {
@@ -412,7 +419,7 @@ if not df_mes.empty:
         if row['Status'] == '⏳ Pendente':
             styles = ['background-color: #451c1c; color: #fca5a5; font-weight: normal;'] * len(row)
         else:
-            if row['Tipo'] in ['💰 Entrada', 'Entrada']:
+            if row['Tipo'] in ['💰 Entrada', 'Entrada', '🚨 Retirada Reserva']:
                 styles = ['background-color: #064e3b; color: #34d399; font-weight: bold;'] * len(row)
             elif row['Tipo'] in ['✈️ Caixinha Viagem', 'Caixinha Viagem']:
                 styles = ['background-color: #451a03; color: #fbbf24; font-weight: bold;'] * len(row)
@@ -441,7 +448,8 @@ if not df_mes.empty:
             "index_original": None,
             "Descrição": st.column_config.TextColumn("Descrição", required=True, width=3),
             "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
-            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=2),
+            # Atualizado as opções da tabela também
+            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=2),
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1.5),
             "Banco": st.column_config.SelectboxColumn("Banco", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=2),
             "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=2)
