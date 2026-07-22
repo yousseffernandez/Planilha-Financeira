@@ -31,13 +31,16 @@ def load_data():
             if "Cartão" not in df.columns:
                 df["Cartão"] = "⚡ Pix"
             
-            # Limpa registros antigos ou nulos migrando para a opção Pix padrão
+            # Limpa e converte os registros antigos com bolinhas para o novo padrão de cartão (💳) nesta coluna
             if not df.empty and "Cartão" in df.columns:
                 df["Cartão"] = df["Cartão"].fillna("⚡ Pix").replace({
                     "❌ Nenhum": "⚡ Pix", 
                     "❌ Nenhum (Pix/Débito)": "⚡ Pix",
                     "❌ Não Utilizou Cartão": "⚡ Pix",
-                    "": "⚡ Pix"
+                    "": "⚡ Pix",
+                    "🟣 Nubank": "💳 Nubank",
+                    "🟡 Banco do Brasil": "💳 Banco do Brasil",
+                    "🔵 Mercado Pago": "💳 Mercado Pago"
                 })
                 
             df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0.0)
@@ -178,7 +181,7 @@ saldo_nu = entradas_nu - saidas_nu
 
 # Banco do Brasil
 entradas_bb = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil')]['Valor'].sum()
-saidas_bb = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
+saidas_bb = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_bb = entradas_bb - saidas_bb
 
 # Caixa Econômica (Nova Adição)
@@ -255,10 +258,10 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l2_b:
         tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
     with col_l2_c:
-        # Caixa Econômica adicionada nas opções de cadastro
         banco_movimentado = st.selectbox("Opção de Pagamento:", ["🟣 Nubank", "🟡 Banco do Brasil", "🔵 Caixa Econômica"])
     with col_l2_d:
-        cartao_usado = st.selectbox("Cartão / Forma de Movimentação:", ["⚡ Pix", "📄 Boleto", "🔄 Débito Automático", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"])
+        # ALTERADO: Emojis ajustados para o símbolo de cartão (💳) nos bancos apenas nesta lista
+        cartao_usado = st.selectbox("Cartão / Forma de Movimentação:", ["⚡ Pix", "📄 Boleto", "🔄 Débito Automático", "💳 Nubank", "💳 Banco do Brasil", "💳 Mercado Pago"])
         
     st.markdown("<br>", unsafe_allow_html=True)
     submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
@@ -305,9 +308,11 @@ if not df_mes.empty:
             "Descrição": st.column_config.TextColumn("Descrição", required=True, width=2.5),
             "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
             "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
-            "Cartão": st.column_config.SelectboxColumn("Cartão / Canal", options=["⚡ Pix", "📄 Boleto", "🔄 Débito Automático", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"], required=True, width=1.5),
+            
+            # ALTERADO: Emojis ajustados para o símbolo de cartão (💳) nos bancos apenas nesta coluna da tabela
+            "Cartão": st.column_config.SelectboxColumn("Cartão / Canal", options=["⚡ Pix", "📄 Boleto", "🔄 Débito Automático", "💳 Nubank", "💳 Banco do Brasil", "💳 Mercado Pago"], required=True, width=1.5),
+            
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1),
-            # Caixa Econômica mapeada na lista de Opções de Pagamento do Extrato
             "Banco": st.column_config.SelectboxColumn("Opção de Pagamento", options=["🟣 Nubank", "🟡 Banco do Brasil", "🔵 Caixa Econômica"], required=True, width=1.5),
             "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=1.5)
         },
