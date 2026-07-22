@@ -147,7 +147,7 @@ if "Banco" not in df_geral.columns:
 df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
-# --- PROCESSAMENTO DOS TOTAIS ---
+# --- PROCESSAMENTO DOS TOTAIS DO MÊS ATUAL ---
 entradas = df_mes[df_mes['Tipo'] == '💰 Entrada']['Valor'].sum()
 gastos_fixos = df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
 gastos_extras = df_mes[df_mes['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
@@ -161,16 +161,19 @@ caixinha_total_acumulada = df_geral[
 
 saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
-# --- CÁLCULO DE SALDOS POR BANCO (BASEADO EM ENTRADAS E SAÍDAS PAGAS) ---
-# Entradas no Nubank menos saídas efetuadas (Pagas)
-entradas_nu = df_mes[(df_mes['Tipo'] == '💰 Entrada') & (df_mes['Banco'] == '🟣 Nubank')]['Valor'].sum()
-saidas_nu = df_mes[(df_mes['Tipo'] != '💰 Entrada') & (df_mes['Banco'] == '🟣 Nubank') & (df_mes['Status'] == '✅ Pago')]['Valor'].sum()
-saldo_nu = entradas_nu - saidas_nu
+# --- NOVA LOGÍSTICA: CÁLCULO DE SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
+# Pega todos os registros do passado até o mês que o usuário está olhando na tela
+df_historico_ate_aqui = df_geral[df_geral['Data_Ordem'] <= data_limite_atual]
 
-# Entradas no BB menos saídas efetuadas (Pagas)
-entradas_bb = df_mes[(df_mes['Tipo'] == '💰 Entrada') & (df_mes['Banco'] == '🟡 Banco do Brasil')]['Valor'].sum()
-saidas_bb = df_mes[(df_mes['Tipo'] != '💰 Entrada') & (df_mes['Banco'] == '🟡 Banco do Brasil') & (df_mes['Status'] == '✅ Pago')]['Valor'].sum()
-saldo_bb = entradas_bb - saidas_bb
+# Acumulado Nubank (Tudo que já entrou - Tudo que já foi Pago até o mês selecionado)
+entradas_nu_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟣 Nubank')]['Valor'].sum()
+saidas_nu_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] != '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟣 Nubank') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
+saldo_nu = entradas_nu_acumulado - saidas_nu_acumulado
+
+# Acumulado Banco do Brasil (Tudo que já entrou - Tudo que já foi Pago até o mês selecionado)
+entradas_bb_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil')]['Valor'].sum()
+saidas_bb_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] != '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
+saldo_bb = entradas_bb_acumulado - saidas_bb_acumulado
 
 # --- LINHA SUPERIOR: SALDOS BANCÁRIOS ---
 st.markdown("### 🏦 Saldos Disponíveis nos Bancos")
@@ -280,7 +283,6 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l2_b:
         tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem", "📈 Investimentos"])
     with col_l2_c:
-        # NOVO CAMPO: Seleção do banco de movimentação
         banco_movimentado = st.selectbox("Banco Origem/Destino:", ["🟣 Nubank", "🟡 Banco do Brasil"])
         
     st.markdown("<br>", unsafe_allow_html=True)
