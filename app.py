@@ -170,11 +170,10 @@ with col1:
 with col2:
     st.markdown(
         f"""<div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px;">
-            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📉 TOTAL ALOCADO</span><br>
-            <span style="color: #ef4444; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 2px;">R$ {total_saidas:,.2f}</span><br>
-            <div style="margin-top: 4px; line-height: 1.3;">
-                <span style="color: #94a3b8; font-size: 11px; font-weight: 500;">🏠 Fixos: <b style="color: #cbd5e1;">R$ {gastos_fixos:,.2f}</b></span><br>
-                <span style="color: #94a3b8; font-size: 11px; font-weight: 500;">🛍️ Extras: <b style="color: #cbd5e1;">R$ {gastos_extras:,.2f}</b></span>
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">🏠 FIXOS & 🛍️ EXTRAS</span><br>
+            <div style="margin-top: 8px; line-height: 1.4;">
+                <span style="color: #ef4444; font-size: 18px; font-weight: 800;">🏠 R$ {gastos_fixos:,.2f}</span><br>
+                <span style="color: #cbd5e1; font-size: 14px; font-weight: 600;">🛍️ R$ {gastos_extras:,.2f}</span>
             </div>
         </div>""", unsafe_allow_html=True
     )
