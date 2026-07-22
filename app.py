@@ -23,11 +23,13 @@ def load_data():
                 df["Mês/Ano"] = datetime.now().strftime("%B / %Y").capitalize()
             if "Data Registro" not in df.columns:
                 df["Data Registro"] = datetime.now().strftime("%d/%m/%Y %H:%M")
+            if "Status" not in df.columns:
+                df["Status"] = "⏳ Pendente"
             df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0.0)
             return df
         except:
             pass
-    return pd.DataFrame(columns=["Descrição", "Valor", "Tipo", "Mês/Ano", "Data Registro"])
+    return pd.DataFrame(columns=["Descrição", "Valor", "Tipo", "Mês/Ano", "Data Registro", "Status"])
 
 # Função para salvar os dados
 def save_data(df):
@@ -36,12 +38,6 @@ def save_data(df):
 # Inicializar os dados na memória do Streamlit
 if 'df' not in st.session_state:
     st.session_state.df = load_data()
-
-# --- INTELIGÊNCIA: DESCOBRIR HISTÓRICO PARA O MENU SUSPENSO ---
-itens_ja_usados = []
-if not st.session_state.df.empty:
-    descricoes_salvas = st.session_state.df["Descrição"].dropna().unique().tolist()
-    itens_ja_usados = sorted([str(d).strip().upper() for d in descricoes_salvas if str(d).strip()])
 
 # --- VARIÁVEIS DE DATA ---
 meses_ano = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
@@ -54,8 +50,7 @@ if 'mes_ativo' not in st.session_state:
 
 # --- NAVEGAÇÃO NA SIDEBAR ---
 st.sidebar.title("📅 Histórico Financeiro")
-anos_disponiveis = [ano_atual - 1, 
-                    ano_atual]
+anos_disponiveis = [ano_atual - 1, ano_atual]
 
 for ano in sorted(anos_disponiveis):
     esta_aberto = (ano == ano_atual)
@@ -69,11 +64,15 @@ for ano in sorted(anos_disponiveis):
 
 mes_selecionado = st.session_state.mes_ativo
 
-# --- FILTRAR DADOS ---
-df_geral = st.session_state.df.copy()
-df_geral['index_original'] = df_geral.index
+# --- INTELIGÊNCIA: DESCOBRIR HISTÓRICO PARA O MENU SUSPENSO ---
+itens_ja_usados = []
+if not st.session_state.df.empty:
+    descricoes_salvas = st.session_state.df["Descrição"].dropna().unique().tolist()
+    itens_ja_usados = sorted([str(d).strip().upper() for d in descricoes_salvas if str(d).strip()])
 
-# Processa a linha do tempo para calcular o acúmulo histórico da caixinha
+# --- AUTOMATIZAÇÃO DE REPETIÇÃO DE GASTOS FIXOS ---
+df_geral = st.session_state.df.copy()
+
 def converter_mes_ano_para_data(string_mes_ano):
     try:
         partes = string_mes_ano.split("/")
@@ -87,7 +86,41 @@ def converter_mes_ano_para_data(string_mes_ano):
 df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 data_limite_atual = converter_mes_ano_para_data(mes_selecionado)
 
-# Dados do mês selecionado na tela
+# Verifica se o mês atual selecionado está completamente sem registros
+df_mes_verificacao = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
+
+if df_mes_verificacao.empty and not st.session_state.df.empty:
+    # Descobre qual foi o último mês que teve qualquer dado registrado no sistema
+    meses_com_dados = df_geral.dropna(subset=['Mês/Ano'])
+    if not meses_com_dados.empty:
+        ultimo_mes_com_registro = meses_com_dados.sort_values(by='Data_Ordem', ascending=False).iloc[0]['Mês/Ano']
+        
+        # Filtra apenas os Gastos Fixos desse último mês operacional
+        df_fixos_anterior = df_geral[
+            (df_geral['Mês/Ano'] == ultimo_mes_com_registro) & 
+            (df_geral['Tipo'] == '🏠 Gasto Fixo')
+        ].copy()
+        
+        if not df_fixos_anterior.empty:
+            # Cria a cópia desses gastos fixos apontando para o novo mês selecionado
+            novos_fixos = pd.DataFrame({
+                "Descrição": df_fixos_anterior["Descrição"],
+                "Valor": df_fixos_anterior["Valor"],
+                "Tipo": "🏠 Gasto Fixo",
+                "Mês/Ano": mes_selecionado,
+                "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                "Status": "⏳ Pendente"  # Entra como pendente para você ir pagando no mês novo
+            })
+            st.session_state.df = pd.concat([st.session_state.df, novos_fixos], ignore_index=True)
+            save_data(st.session_state.df)
+            st.rerun()
+
+# Atualiza os filtros após a possível automação de cópia
+df_geral = st.session_state.df.copy()
+df_geral['index_original'] = df_geral.index
+if "Status" not in df_geral.columns:
+    df_geral["Status"] = "⏳ Pendente"
+df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
 # --- PROCESSAMENTO DOS TOTAIS ---
@@ -97,7 +130,6 @@ gastos_extras = df_mes[df_mes['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
 caixinha_mes_atual = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
 investimentos = df_mes[df_mes['Tipo'] == '📈 Investimentos']['Valor'].sum()
 
-# CÁLCULO ACUMULATIVO: Soma tudo desde o passado até o mês ativo na tela
 caixinha_total_acumulada = df_geral[
     (df_geral['Tipo'] == '✈️ Caixinha Viagem') & 
     (df_geral['Data_Ordem'] <= data_limite_atual)
@@ -204,13 +236,16 @@ if submit_button:
     else:
         desc_final = None
 
+    status_inicial = "✅ Pago" if tipo in ["💰 Entrada", "📈 Investimentos"] else "⏳ Pendente"
+
     if desc_final and valor_final > 0:
         nova_linha = {
             "Descrição": desc_final,
             "Valor": valor_final,
             "Tipo": tipo,
             "Mês/Ano": mes_selecionado,
-            "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M")
+            "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "Status": status_inicial
         }
         df_atual = load_data()
         st.session_state.df = pd.concat([df_atual, pd.DataFrame([nova_linha])], ignore_index=True)
@@ -224,18 +259,22 @@ st.markdown("---")
 
 # --- EXTRATO MENSAL INTERATIVO ---
 st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
+st.caption("✏️ **Dica:** Modifique valores ou mude o status para '✅ Pago' dando dois cliques diretamente na tabela.")
 
 if not df_mes.empty:
-    df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Data Registro"]].copy()
+    df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Status", "Data Registro"]].copy()
     
     def colorir_linhas(row):
         styles = [''] * len(row)
-        if row['Tipo'] in ['💰 Entrada', 'Entrada']:
-            styles = ['background-color: #064e3b; color: #34d399; font-weight: bold;'] * len(row)
-        elif row['Tipo'] in ['✈️ Caixinha Viagem', 'Caixinha Viagem']:
-            styles = ['background-color: #451a03; color: #fbbf24; font-weight: bold;'] * len(row)
-        elif row['Tipo'] in ['📈 Investimentos', 'Investimentos']:
-            styles = ['background-color: #1e3a8a; color: #60a5fa; font-weight: bold;'] * len(row)
+        if row['Status'] == '⏳ Pendente':
+            styles = ['background-color: #451c1c; color: #fca5a5; font-weight: normal;'] * len(row)
+        else:
+            if row['Tipo'] in ['💰 Entrada', 'Entrada']:
+                styles = ['background-color: #064e3b; color: #34d399; font-weight: bold;'] * len(row)
+            elif row['Tipo'] in ['✈️ Caixinha Viagem', 'Caixinha Viagem']:
+                styles = ['background-color: #451a03; color: #fbbf24; font-weight: bold;'] * len(row)
+            elif row['Tipo'] in ['📈 Investimentos', 'Investimentos']:
+                styles = ['background-color: #1e3a8a; color: #60a5fa; font-weight: bold;'] * len(row)
         return styles
 
     tabela_editada = st.data_editor(
@@ -248,6 +287,7 @@ if not df_mes.empty:
             "Descrição": st.column_config.TextColumn("Descrição", required=True),
             "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True),
             "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True),
+            "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True),
             "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True)
         },
         key="editor_extrato"
@@ -262,7 +302,7 @@ if not df_mes.empty:
         save_data(df_atualizado)
         st.rerun()
         
-    # Edição
+    # Edição Celular
     if "editor_extrato" in st.session_state and st.session_state.editor_extrato.get("edited_rows"):
         alteracoes = st.session_state.editor_extrato["edited_rows"]
         df_principal = load_data()
