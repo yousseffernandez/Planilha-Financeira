@@ -25,11 +25,13 @@ def load_data():
                 df["Data Registro"] = datetime.now().strftime("%d/%m/%Y %H:%M")
             if "Status" not in df.columns:
                 df["Status"] = "⏳ Pendente"
+            if "Banco" not in df.columns:
+                df["Banco"] = "🟣 Nubank"
             df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0.0)
             return df
         except:
             pass
-    return pd.DataFrame(columns=["Descrição", "Valor", "Tipo", "Mês/Ano", "Data Registro", "Status"])
+    return pd.DataFrame(columns=["Descrição", "Valor", "Tipo", "Mês/Ano", "Data Registro", "Status", "Banco"])
 
 # Função para salvar os dados
 def save_data(df):
@@ -128,7 +130,8 @@ if df_mes_verificacao.empty and not st.session_state.df.empty:
                 "Tipo": "🏠 Gasto Fixo",
                 "Mês/Ano": mes_selecionado,
                 "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                "Status": "⏳ Pendente"
+                "Status": "⏳ Pendente",
+                "Banco": df_fixos_anterior["Banco"] if "Banco" in df_fixos_anterior.columns else "🟣 Nubank"
             })
             st.session_state.df = pd.concat([st.session_state.df, novos_fixos], ignore_index=True)
             save_data(st.session_state.df)
@@ -139,6 +142,8 @@ df_geral = st.session_state.df.copy()
 df_geral['index_original'] = df_geral.index
 if "Status" not in df_geral.columns:
     df_geral["Status"] = "⏳ Pendente"
+if "Banco" not in df_geral.columns:
+    df_geral["Banco"] = "🟣 Nubank"
 df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
@@ -156,7 +161,40 @@ caixinha_total_acumulada = df_geral[
 
 saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
-# --- REORGANIZAÇÃO EM 4 COLUNAS ---
+# --- CÁLCULO DE SALDOS POR BANCO (BASEADO EM ENTRADAS E SAÍDAS PAGAS) ---
+# Entradas no Nubank menos saídas efetuadas (Pagas)
+entradas_nu = df_mes[(df_mes['Tipo'] == '💰 Entrada') & (df_mes['Banco'] == '🟣 Nubank')]['Valor'].sum()
+saidas_nu = df_mes[(df_mes['Tipo'] != '💰 Entrada') & (df_mes['Banco'] == '🟣 Nubank') & (df_mes['Status'] == '✅ Pago')]['Valor'].sum()
+saldo_nu = entradas_nu - saidas_nu
+
+# Entradas no BB menos saídas efetuadas (Pagas)
+entradas_bb = df_mes[(df_mes['Tipo'] == '💰 Entrada') & (df_mes['Banco'] == '🟡 Banco do Brasil')]['Valor'].sum()
+saidas_bb = df_mes[(df_mes['Tipo'] != '💰 Entrada') & (df_mes['Banco'] == '🟡 Banco do Brasil') & (df_mes['Status'] == '✅ Pago')]['Valor'].sum()
+saldo_bb = entradas_bb - saidas_bb
+
+# --- LINHA SUPERIOR: SALDOS BANCÁRIOS ---
+st.markdown("### 🏦 Saldos Disponíveis nos Bancos")
+col_b1, col_b2 = st.columns(2)
+
+with col_b1:
+    st.markdown(
+        f"""<div style="border: 1px solid #8a05be; border-left: 6px solid #8a05be; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; text-align: center;">
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">🟣 SALDO NUBANK</span><br>
+            <span style="color: #8a05be; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_nu:,.2f}</span>
+        </div>""", unsafe_allow_html=True
+    )
+
+with col_b2:
+    st.markdown(
+        f"""<div style="border: 1px solid #facc15; border-left: 6px solid #facc15; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; text-align: center;">
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">🟡 SALDO BANCO DO BRASIL</span><br>
+            <span style="color: #facc15; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_bb:,.2f}</span>
+        </div>""", unsafe_allow_html=True
+    )
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --- REORGANIZAÇÃO EM 4 COLUNAS RESUMO MENSAL ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 with col1:
@@ -224,7 +262,7 @@ else:
 
 st.markdown("---")
 
-# --- FORMULÁRIO COMPACTO 2X2 ---
+# --- FORMULÁRIO COMPACTO 3X2 ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
 opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"]
@@ -236,11 +274,14 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l1_b:
         descricao_manual = st.text_input("Ou digite um item novo:", placeholder="Ex: MERCADO, TESOURO SELIC, CDB...")
         
-    col_l2_a, col_l2_b = st.columns(2)
+    col_l2_a, col_l2_b, col_l2_c = st.columns(3)
     with col_l2_a:
         valor_texto = st.text_input("Valor do Lançamento (R$):", placeholder="0,00")
     with col_l2_b:
         tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem", "📈 Investimentos"])
+    with col_l2_c:
+        # NOVO CAMPO: Seleção do banco de movimentação
+        banco_movimentado = st.selectbox("Banco Origem/Destino:", ["🟣 Nubank", "🟡 Banco do Brasil"])
         
     st.markdown("<br>", unsafe_allow_html=True)
     submit_button = st.form_submit_button(label="Adicionar Lançamento", use_container_width=True)
@@ -271,7 +312,8 @@ if submit_button:
             "Tipo": tipo,
             "Mês/Ano": mes_selecionado,
             "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
-            "Status": status_inicial
+            "Status": status_inicial,
+            "Banco": banco_movimentado
         }
         df_atual = load_data()
         st.session_state.df = pd.concat([df_atual, pd.DataFrame([nova_linha])], ignore_index=True)
@@ -287,7 +329,7 @@ st.markdown("---")
 st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
 
 if not df_mes.empty:
-    df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Status", "Data Registro"]].copy()
+    df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Status", "Banco", "Data Registro"]].copy()
     
     # Ordenação alfabética
     df_visual = df_visual.sort_values(by="Descrição", key=lambda col: col.str.lower(), ascending=True)
@@ -306,26 +348,19 @@ if not df_mes.empty:
                 styles = ['background-color: #1e3a8a; color: #60a5fa; font-weight: bold;'] * len(row)
         return styles
 
-    # FORÇANDO CENTRALIZAÇÃO COMPLETA DAS CÉLULAS E CABEÇALHOS VIA CSS INJETADO
+    # FORÇANDO CENTRALIZAÇÃO VISUAL GLOBAL
     st.markdown(
         """
         <style>
-            /* Centraliza os textos de todas as células da tabela do data_editor */
             div[data-testid="stDataEditor"] div div div div div div div div div {
                 text-align: center !important;
                 justify-content: center !important;
-            }
-            /* Centraliza os textos dos cabeçalhos das colunas */
-            .ag-header-cell-label {
-                justify-content: center !important;
-                text-align: center !important;
             }
         </style>
         """,
         unsafe_allow_html=True
     )
 
-    # AJUSTE DA LARGURA: Usamos pesos proporcionais (3, 1.5, 2, 1.5, 2) que fazem a tabela esticar 100% no meio de forma elástica
     tabela_editada = st.data_editor(
         df_visual.style.apply(colorir_linhas, axis=1),
         hide_index=True,
@@ -334,9 +369,10 @@ if not df_mes.empty:
         column_config={
             "index_original": None,
             "Descrição": st.column_config.TextColumn("Descrição", required=True, width=3),
-            "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5),
+            "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
             "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=2),
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1.5),
+            "Banco": st.column_config.SelectboxColumn("Banco", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=2),
             "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=2)
         },
         key="editor_extrato"
