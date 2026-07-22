@@ -96,7 +96,7 @@ if not st.session_state.df.empty:
     descricoes_salvas = st.session_state.df["Descrição"].dropna().unique().tolist()
     itens_ja_usados = sorted([str(d).strip().upper() for d in descricoes_salvas if str(d).strip()])
 
-# --- AUTOMATIZAÇÃO DE REPETIÇÃO DE GASTOS FIXOS ---
+# --- AUTOMATIZAÇÃO DE REPETIÇÃO DE GASTOS FIXOS & CARTÃO ---
 df_geral = st.session_state.df.copy()
 
 def converter_mes_ano_para_data(string_mes_ano):
@@ -114,6 +114,7 @@ data_limite_atual = converter_mes_ano_para_data(mes_selecionado)
 
 df_mes_verificacao = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
+# Copia automaticamente tanto Gastos Fixos quanto Cartão de Crédito para o mês seguinte
 if df_mes_verificacao.empty and not st.session_state.df.empty:
     meses_com_dados = df_geral.dropna(subset=['Mês/Ano'])
     if not meses_com_dados.empty:
@@ -121,14 +122,14 @@ if df_mes_verificacao.empty and not st.session_state.df.empty:
         
         df_fixos_anterior = df_geral[
             (df_geral['Mês/Ano'] == ultimo_mes_com_registro) & 
-            (df_geral['Tipo'] == '🏠 Gasto Fixo')
+            (df_geral['Tipo'].isin(['🏠 Gasto Fixo', '💳 Cartão de Crédito']))
         ].copy()
         
         if not df_fixos_anterior.empty:
             novos_fixos = pd.DataFrame({
                 "Descrição": df_fixos_anterior["Descrição"],
                 "Valor": df_fixos_anterior["Valor"],
-                "Tipo": "🏠 Gasto Fixo",
+                "Tipo": df_fixos_anterior["Tipo"],
                 "Mês/Ano": mes_selecionado,
                 "Data Registro": datetime.now().strftime("%d/%m/%Y %H:%M"),
                 "Status": "⏳ Pendente",
@@ -151,6 +152,9 @@ df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 # --- PROCESSAMENTO DOS TOTAIS DO MÊS ATUAL ---
 entradas = df_mes[df_mes['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])]['Valor'].sum()
 gastos_fixos = df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
+
+# Cartão de crédito entra como Gasto Mensal para o cálculo do Saldo Livre
+gastos_cartao = df_mes[df_mes['Tipo'] == '💳 Cartão de Crédito']['Valor'].sum()
 gastos_extras = df_mes[df_mes['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
 caixinha_mes_atual = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
 investimentos = df_mes[df_mes['Tipo'].isin(['📈 Investimentos', '🟢 Reposição Reserva'])]['Valor'].sum()
@@ -160,7 +164,8 @@ caixinha_total_acumulada = df_geral[
     (df_geral['Data_Ordem'] <= data_limite_atual)
 ]['Valor'].sum()
 
-saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
+# Saldo Livre deduz tudo, incluindo o cartão de crédito consumido no mês
+saldo_livre = entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investments)
 
 # --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
 df_historico_ate_aqui = df_geral[df_geral['Data_Ordem'] <= data_limite_atual]
@@ -227,13 +232,15 @@ with col1:
     )
 
 with col2:
+    # Card de gastos mensais agora exibe os gastos de Cartão agregados para fácil visualização
     st.markdown(
         f"""<div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📊 GASTOS MENSAIS</span>
-            <div style="margin-top: 6px; display: flex; flex-direction: column;">
-                <span style="color: #ef4444; font-size: 18px; font-weight: 700; padding-bottom: 4px;">🏠 Fixos: R$ {gastos_fixos:,.2f}</span>
-                <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 3px 0;"></div>
-                <span style="color: #cbd5e1; font-size: 18px; font-weight: 700; padding-top: 4px;">🛍️ Extras: R$ {gastos_extras:,.2f}</span>
+            <div style="margin-top: 4px; display: flex; flex-direction: column;">
+                <span style="color: #ef4444; font-size: 15px; font-weight: 700; padding-bottom: 2px;">🏠 Fixos: R$ {gastos_fixos:,.2f}</span>
+                <span style="color: #f43f5e; font-size: 15px; font-weight: 700; padding-bottom: 2px;">💳 Cartão: R$ {gastos_cartao:,.2f}</span>
+                <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 2px 0;"></div>
+                <span style="color: #cbd5e1; font-size: 15px; font-weight: 700; padding-top: 2px;">🛍️ Extras: R$ {gastos_extras:,.2f}</span>
             </div>
         </div>""", unsafe_allow_html=True
     )
@@ -260,13 +267,12 @@ with col4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- SEÇÃO INTELIGENTE: SAÚDE FINANCEIRA COMPLETA ---
+# --- SEÇÃO INTELIGENTE: SAÚDE FINANCEIRA ---
 st.markdown("### 📊 Saúde Financeira")
 
 col_analise, col_grafico = st.columns([1.2, 1])
 
 with col_analise:
-    # LÓGICA DE EXIBIÇÃO: O alerta da reserva fica FORA da validação de receita, tornando-o fixo em qualquer mês!
     if deficit_reserva > 0:
         st.markdown(
             f"""<div style="border: 1px solid #f59e0b; border-left: 5px solid #f59e0b; background-color: #0f172a; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;">
@@ -275,19 +281,19 @@ with col_analise:
         )
 
     if entradas > 0:
-        porcentagem_gasta = ((gastos_fixos + gastos_extras) / entradas) * 100
+        porcentagem_gasta = ((gastos_fixos + gastos_cartao + gastos_extras) / entradas) * 100
         porcentagem_investida = (investimentos / entradas) * 100
         
         if porcentagem_gasta <= 60:
             st.markdown(
                 f"""<div style="border: 1px solid #10b981; border-left: 5px solid #10b981; background-color: #0f172a; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;">
-                    <span style="font-size: 15px; color: #cbd5e1;">🟢 <b>Custo de Vida sob controle:</b> Seus gastos fixos/extras consomem <b>{porcentagem_gasta:.1f}%</b> da renda (dentro da meta ideal de 60%).</span>
+                    <span style="font-size: 15px; color: #cbd5e1;">🟢 <b>Custo de Vida sob controle:</b> Seus gastos (fixos/cartão/extras) consomem <b>{porcentagem_gasta:.1f}%</b> da renda (dentro da meta ideal de 60%).</span>
                 </div>""", unsafe_allow_html=True
             )
         else:
             st.markdown(
                 f"""<div style="border: 1px solid #ef4444; border-left: 5px solid #ef4444; background-color: #0f172a; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;">
-                    <span style="font-size: 15px; color: #cbd5e1;">🔴 <b>Custo de Vida alto:</b> Seus custos fixos/extras já comprometeram <b>{porcentagem_gasta:.1f}%</b> da sua renda!</span>
+                    <span style="font-size: 15px; color: #cbd5e1;">🔴 <b>Custo de Vida alto:</b> Seus custos gerais já comprometeram <b>{porcentagem_gasta:.1f}%</b> da sua renda!</span>
                 </div>""", unsafe_allow_html=True
             )
             
@@ -305,9 +311,9 @@ with col_analise:
         
 with col_grafico:
     if entradas > 0:
-        raw_labels = ['🏠 Gastos Fixos', '🛍️ Gastos Extras', '📈 Investimentos', '✈️ Caixinha Viagem', '⚖️ Saldo Livre']
-        valores_pizza = [gastos_fixos, gastos_extras, investimentos, caixinha_mes_atual, max(0, saldo_livre)]
-        cores = ['#ef4444', '#cbd5e1', '#3b82f6', '#f59e0b', '#10b981']
+        raw_labels = ['🏠 Gastos Fixos', '💳 Cartão de Crédito', '🛍️ Gastos Extras', '📈 Investimentos', '✈️ Caixinha Viagem', '⚖️ Saldo Livre']
+        valores_pizza = [gastos_fixos, gastos_cartao, gastos_extras, investimentos, caixinha_mes_atual, max(0, saldo_livre)]
+        cores = ['#ef4444', '#f43f5e', '#cbd5e1', '#3b82f6', '#f59e0b', '#10b981']
         
         labels_filtrados = []
         valores_filtrados = []
@@ -339,7 +345,6 @@ with col_grafico:
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
-        # Espaço em branco harmônico para manter o alinhamento visual
         st.write("")
 
 st.markdown("---")
@@ -354,13 +359,14 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l1_a:
         item_selecionado = st.selectbox("Escolha um gasto da lista:", opcoes_selectbox)
     with col_l1_b:
-        descricao_manual = st.text_input("Ou digite um item novo:", placeholder="Ex: MERCADO, TESOURO SELIC...")
+        descricao_manual = st.text_input("Ou digite um item novo:", placeholder="Ex: NETFLIX, ACADEMIA, SPOTIFY...")
         
     col_l2_a, col_l2_b, col_l2_c = st.columns(3)
     with col_l2_a:
         valor_texto = st.text_input("Valor do Lançamento (R$):", placeholder="0,00")
     with col_l2_b:
-        tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
+        # CATEGORIAS ATUALIZADAS: Incluído o Cartão de Crédito de forma explícita
+        tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
     with col_l2_c:
         banco_movimentado = st.selectbox("Banco Origem/Destino:", ["🟣 Nubank", "🟡 Banco do Brasil"])
         
@@ -403,7 +409,7 @@ if submit_button:
         st.success("Adicionado com sucesso!")
         st.rerun()
     else:
-        st.warning("Por favor, preencha a descrição (ou selecione a categoria de Reserva) e insira um valor válido.")
+        st.warning("Por favor, preencha a descrição e insira um valor válido.")
 
 st.markdown("---")
 
@@ -449,7 +455,8 @@ if not df_mes.empty:
             "index_original": None,
             "Descrição": st.column_config.TextColumn("Descrição", required=True, width=3),
             "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
-            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=2),
+            # Atualizada as opções da tabela editável
+            "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=2),
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1.5),
             "Banco": st.column_config.SelectboxColumn("Banco", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=2),
             "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=2)
