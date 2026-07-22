@@ -161,7 +161,6 @@ caixinha_total_acumulada = df_geral[
     (df_geral['Data_Ordem'] <= data_limite_atual)
 ]['Valor'].sum()
 
-# CORRIGIDO: Modificado de investments para investimentos
 saldo_livre = entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investimentos)
 
 # --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
@@ -212,40 +211,40 @@ with col_b2:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- REORGANIZAÇÃO EM 4 COLUNAS ---
+# --- REORGANIZAÇÃO EM 4 COLUNAS (ALTURA EQUILIBRADA A 135PX) ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
 with col1:
     cor_saldo_texto = "#10b981" if saldo_livre >= 0 else "#ef4444"
     st.markdown(
-        f"""<div style="border: 1px solid #10b981; border-left: 6px solid #10b981; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
+        f"""<div style="border: 1px solid #10b981; border-left: 6px solid #10b981; background-color: #0f172a; padding: 10px 15px; border-radius: 12px; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">💰 ENTRADAS & SALDO</span>
-            <div style="margin-top: 6px; display: flex; flex-direction: column;">
-                <span style="color: #10b981; font-size: 18px; font-weight: 700; padding-bottom: 4px;">💰 Receita: R$ {entradas:,.2f}</span>
+            <div style="margin-top: 2px; display: flex; flex-direction: column;">
+                <span style="color: #10b981; font-size: 17px; font-weight: 700; padding-bottom: 2px;">💰 Receita: R$ {entradas:,.2f}</span>
                 <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 3px 0;"></div>
-                <span style="color: {cor_saldo_texto}; font-size: 18px; font-weight: 700; padding-top: 4px;">⚖️ Livre: R$ {saldo_livre:,.2f}</span>
+                <span style="color: {cor_saldo_texto}; font-size: 17px; font-weight: 700; padding-top: 2px;">⚖️ Livre: R$ {saldo_livre:,.2f}</span>
             </div>
         </div>""", unsafe_allow_html=True
     )
 
 with col2:
     st.markdown(
-        f"""<div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
+        f"""<div style="border: 1px solid #ef4444; border-left: 6px solid #ef4444; background-color: #0f172a; padding: 10px 15px; border-radius: 12px; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📊 GASTOS MENSAIS</span>
-            <div style="margin-top: 4px; display: flex; flex-direction: column;">
-                <span style="color: #ef4444; font-size: 15px; font-weight: 700; padding-bottom: 2px;">🏠 Fixos: R$ {gastos_fixos:,.2f}</span>
-                <span style="color: #f43f5e; font-size: 15px; font-weight: 700; padding-bottom: 2px;">💳 Cartão: R$ {gastos_cartao:,.2f}</span>
+            <div style="margin-top: 2px; display: flex; flex-direction: column;">
+                <span style="color: #ef4444; font-size: 14px; font-weight: 700;">🏠 Fixos: R$ {gastos_fixos:,.2f}</span>
+                <span style="color: #f43f5e; font-size: 14px; font-weight: 700; padding-top: 1px;">💳 Cartão: R$ {gastos_cartao:,.2f}</span>
                 <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 2px 0;"></div>
-                <span style="color: #cbd5e1; font-size: 15px; font-weight: 700; padding-top: 2px;">🛍️ Extras: R$ {gastos_extras:,.2f}</span>
+                <span style="color: #cbd5e1; font-size: 14px; font-weight: 700;">🛍️ Extras: R$ {gastos_extras:,.2f}</span>
             </div>
         </div>""", unsafe_allow_html=True
     )
 
 with col3:
     st.markdown(
-        f"""<div style="border: 1px solid #3b82f6; border-left: 6px solid #3b82f6; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
+        f"""<div style="border: 1px solid #3b82f6; border-left: 6px solid #3b82f6; background-color: #0f172a; padding: 10px 15px; border-radius: 12px; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">📈 INVESTIMENTOS</span>
-            <div style="flex-grow: 1; display: flex; align-items: center; margin-top: 12px;">
+            <div style="flex-grow: 1; display: flex; align-items: center; margin-top: 8px;">
                 <span style="color: #3b82f6; font-size: 24px; font-weight: 800;">R$ {investimentos:,.2f}</span>
             </div>
         </div>""", unsafe_allow_html=True
@@ -253,9 +252,9 @@ with col3:
 
 with col4:
     st.markdown(
-        f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between;">
+        f"""<div style="border: 1px solid #f59e0b; border-left: 6px solid #f59e0b; background-color: #0f172a; padding: 10px 15px; border-radius: 12px; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">✈️ CAIXINHA VIAGEM</span>
-            <div style="flex-grow: 1; display: flex; align-items: center; margin-top: 12px;">
+            <div style="flex-grow: 1; display: flex; align-items: center; margin-top: 8px;">
                 <span style="color: #f59e0b; font-size: 24px; font-weight: 800;">R$ {caixinha_total_acumulada:,.2f}</span>
             </div>
         </div>""", unsafe_allow_html=True
@@ -325,19 +324,27 @@ with col_grafico:
         fig = go.Figure(data=[go.Pie(
             labels=labels_filtrados, 
             values=valores_filtrados, 
-            hole=.4,
+            hole=.55, # Aumentado levemente o furo para caber o texto
             marker=dict(colors=cores_filtradas),
             textinfo='none',  
             hovertemplate='<b>%{label}</b><br>Valor: R$ %{value:,.2f}<extra></extra>'
         )])
         
+        # MELHORIA VISUAL: Inserindo o Saldo Livre formatado no centro da rosca
         fig.update_layout(
-            margin=dict(t=25, b=25, l=25, r=25),
+            margin=dict(t=15, b=15, l=15, r=15),
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             showlegend=True,
-            legend=dict(font=dict(color='#cbd5e1', size=16)),
-            height=300
+            legend=dict(font=dict(color='#cbd5e1', size=15)),
+            height=300,
+            annotations=[dict(
+                text=f"Livre<br><b style='font-size:16px;color:#10b981;'>R$ {saldo_livre:,.2f}</b>", 
+                x=0.5, y=0.5, 
+                font=dict(size=13, color='#94a3b8'), 
+                showarrow=False,
+                align="center"
+            )]
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
@@ -345,10 +352,22 @@ with col_grafico:
 
 st.markdown("---")
 
-# --- FORMULÁRIO COMPACTO ---
+# --- FORMULÁRIO COMPACTO COM MELHORIA DE BORDA ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
 opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "🚨 RETIRADA RESERVA", "🟢 REPOSIÇÃO RESERVA", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"]
+
+# CSS Injetado para dar um tapa sutil no visual dos inputs do formulário do Streamlit
+st.markdown(
+    """
+    <style>
+        div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {
+            border: 1px solid rgba(148, 163, 184, 0.15) !important;
+            border-radius: 6px !important;
+        }
+    </style>
+    """, unsafe_allow_html=True
+)
 
 with st.form(key='finance_form', clear_on_submit=True):
     col_l1_a, col_l1_b = st.columns(2)
