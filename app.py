@@ -162,16 +162,13 @@ caixinha_total_acumulada = df_geral[
 
 saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
-# --- CORREÇÃO DA LÓGICA DE SALDO BANCÁRIO ACUMULADO ---
-# Considera o histórico completo de movimentações até o mês visualizado
+# --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
 df_historico_ate_aqui = df_geral[df_geral['Data_Ordem'] <= data_limite_atual]
 
-# Nubank: Entradas (Salário/Pix recebidos) menos as Saídas que já foram DE FATO PAGAS (✅ Pago)
 entradas_nu_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟣 Nubank')]['Valor'].sum()
 saidas_nu_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] != '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟣 Nubank') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_nu = entradas_nu_acumulado - saidas_nu_acumulado
 
-# Banco do Brasil: Entradas menos as Saídas que já foram DE FATO PAGAS (✅ Pago)
 entradas_bb_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil')]['Valor'].sum()
 saidas_bb_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] != '💰 Entrada') & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_bb = entradas_bb_acumulado - saidas_bb_acumulado
@@ -248,7 +245,7 @@ with col4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- SEÇÃO INTELIGENTE: SAÚDE FINANCEIRA COM PIZZA INTERATIVA ---
+# --- SEÇÃO INTELIGENTE: SAÚDE FINANCEIRA MELHORADA VISUALMENTE ---
 st.markdown("### 📊 Saúde Financeira")
 if entradas > 0:
     porcentagem_gasta = ((gastos_fixos + gastos_extras) / entradas) * 100
@@ -257,12 +254,26 @@ if entradas > 0:
     col_analise, col_grafico = st.columns([1.2, 1])
     
     with col_analise:
+        # Substituindo st.error / st.success por cards HTML premium
         if porcentagem_gasta <= 60:
-            st.success(f"🟢 **Custo de Vida sob controle:** Seus gastos fixos/extras consomem **{porcentagem_gasta:.1f}%** da renda (dentro da meta ideal de 60%).")
+            st.markdown(
+                f"""<div style="border: 1px solid #10b981; border-left: 5px solid #10b981; background-color: #0f172a; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;">
+                    <span style="font-size: 15px; color: #cbd5e1;">🟢 <b>Custo de Vida sob controle:</b> Seus gastos fixos/extras consomem <b>{porcentagem_gasta:.1f}%</b> da renda (dentro da meta ideal de 60%).</span>
+                </div>""", unsafe_allow_html=True
+            )
         else:
-            st.error(f"🔴 **Custo de Vida alto:** Seus custos fixos/extras já comprometeram **{porcentagem_gasta:.1f}%** da sua renda!")
+            st.markdown(
+                f"""<div style="border: 1px solid #ef4444; border-left: 5px solid #ef4444; background-color: #0f172a; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;">
+                    <span style="font-size: 15px; color: #cbd5e1;">🔴 <b>Custo de Vida alto:</b> Seus custos fixos/extras já comprometeram <b>{porcentagem_gasta:.1f}%</b> da sua renda!</span>
+                </div>""", unsafe_allow_html=True
+            )
             
-        st.info(f"📊 **Aporte Patrimonial:** Você separou **{porcentagem_investida:.1f}%** da sua receita para Investimentos neste mês.")
+        # Substituindo st.info por card HTML premium
+        st.markdown(
+            f"""<div style="border: 1px solid #3b82f6; border-left: 5px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;">
+                <span style="font-size: 15px; color: #cbd5e1;">📊 <b>Aporte Patrimonial:</b> Você separou <b>{porcentagem_investida:.1f}%</b> da sua receita para Investimentos neste mês.</span>
+            </div>""", unsafe_allow_html=True
+        )
         
     with col_grafico:
         raw_labels = ['🏠 Gastos Fixos', '🛍️ Gastos Extras', '📈 Investimentos', '✈️ Caixinha Viagem', '⚖️ Saldo Livre']
@@ -299,7 +310,11 @@ if entradas > 0:
         )
         st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("💡 Insira um lançamento do tipo '💰 Entrada' para ativar a análise gráfica de saúde do mês.")
+    st.markdown(
+        """<div style="border: 1px solid #3b82f6; border-left: 5px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;">
+            <span style="font-size: 15px; color: #cbd5e1;">💡 Insira um lançamento do tipo '💰 Entrada' para ativar a análise gráfica de saúde do mês.</span>
+        </div>""", unsafe_allow_html=True
+    )
 
 st.markdown("---")
 
@@ -358,7 +373,7 @@ if submit_button:
         df_atual = load_data()
         st.session_state.df = pd.concat([df_atual, pd.DataFrame([nova_linha])], ignore_index=True)
         save_data(st.session_state.df)
-        st.success("Adicionado com sucesso!")
+        st.success("Adicionar com sucesso!")
         st.rerun()
     else:
         st.warning("Por favor, preencha a descrição e insira um valor válido.")
