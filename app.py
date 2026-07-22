@@ -31,7 +31,6 @@ def load_data():
             if "Cartão" not in df.columns:
                 df["Cartão"] = "⚡ Pix"
             
-            # Limpa e converte os registros antigos com bolinhas para o novo padrão de cartão (💳) nesta coluna
             if not df.empty and "Cartão" in df.columns:
                 df["Cartão"] = df["Cartão"].fillna("⚡ Pix").replace({
                     "❌ Nenhum": "⚡ Pix", 
@@ -160,6 +159,19 @@ df_geral['index_original'] = df_geral.index
 df_geral['Data_Ordem'] = df_geral['Mês/Ano'].apply(converter_mes_ano_para_data)
 df_mes = df_geral[df_geral['Mês/Ano'] == mes_selecionado]
 
+# --- INTEGRAÇÃO DA SOBRA AUTOMÁTICA DO MÊS PASSADO ---
+df_passado = df_geral[df_geral['Data_Ordem'] < data_limite_atual]
+entradas_passado = df_passado[df_passado['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])]['Valor'].sum()
+gastos_fixos_passado = df_passado[df_passado['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
+gastos_cartao_passado = df_passado[df_passado['Tipo'] == '💳 Cartão de Crédito']['Valor'].sum()
+gastos_extras_passado = df_passado[df_passado['Tipo'] == '🛍️ Gasto Extra']['Valor'].sum()
+caixinha_passado = df_passado[df_passado['Tipo'] == '✈️ Caixinha Viagem']['Valor'].sum()
+investimentos_passado = df_passado[df_passado['Tipo'].isin(['📈 Investimentos', '🟢 Reposição Reserva'])]['Valor'].sum()
+
+# Essa é a sobra líquida acumulada que veio dos meses anteriores
+sobra_mes_anterior = entradas_passado - (gastos_fixos_passado + gastos_cartao_passado + gastos_extras_passado + caixinha_passado + investimentos_passado)
+
+# Totais do mês atual
 entradas = df_mes[df_mes['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])]['Valor'].sum()
 gastos_fixos = df_mes[df_mes['Tipo'] == '🏠 Gasto Fixo']['Valor'].sum()
 gastos_cartao = df_mes[df_mes['Tipo'] == '💳 Cartão de Crédito']['Valor'].sum()
@@ -168,7 +180,9 @@ caixinha_mes_atual = df_mes[df_mes['Tipo'] == '✈️ Caixinha Viagem']['Valor']
 investimentos = df_mes[df_mes['Tipo'].isin(['📈 Investimentos', '🟢 Reposição Reserva'])]['Valor'].sum()
 
 caixinha_total_acumulada = df_geral[(df_geral['Tipo'] == '✈️ Caixinha Viagem') & (df_geral['Data_Ordem'] <= data_limite_atual)]['Valor'].sum()
-saldo_livre = entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investimentos)
+
+# MATEMÁTICA AUTOMATIZADA: Saldo livre agora inclui a sobra herdada do passado
+saldo_livre = sobra_mes_anterior + entradas - (gastos_fixos + gastos_cartao + gastos_extras + caixinha_mes_atual + investimentos)
 porcentagem_investida = (investimentos / entradas) * 100 if entradas > 0 else 0.0
 
 # --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
@@ -184,21 +198,28 @@ entradas_bb = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 E
 saidas_bb = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🟡 Banco do Brasil') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
 saldo_bb = entradas_bb - saidas_bb
 
+# Caixa Econômica
+entradas_cx = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🔵 Caixa Econômica')]['Valor'].sum()
+saidas_cx = df_historico_ate_aqui[(~df_historico_ate_aqui['Tipo'].isin(['💰 Entrada', '🚨 Retirada Reserva'])) & (df_historico_ate_aqui['Banco'] == '🔵 Caixa Econômica') & (df_historico_ate_aqui['Status'] == '✅ Pago')]['Valor'].sum()
+saldo_cx = entradas_cx - saidas_cx
+
 retiradas_reserva = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '🚨 Retirada Reserva') | ((df_historico_ate_aqui['Tipo'] == '💰 Entrada') & (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False)))]['Valor'].sum()
 reposicoes_reserva = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] == '🟢 Reposição Reserva') | ((df_historico_ate_aqui['Tipo'] == '📈 Investimentos') & (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False)))]['Valor'].sum()
 deficit_reserva = retiradas_reserva - reposicoes_reserva
 
-# --- LAYOUT SUPERIOR: DOIS BANCOS PRINCIPAIS (FACHADA LIMPA) ---
+# --- LAYOUT SUPERIOR: SALDOS BANCÁRIOS ---
 st.markdown("### 🏦 Saldos Disponíveis nos Bancos")
-col_b1, col_b2 = st.columns(2)
+col_b1, col_b2, col_b3 = st.columns(3)
 with col_b1:
     st.markdown(f"""<div style="border: 1px solid #8a05be; border-left: 6px solid #8a05be; background-color: #0f172a; padding: 15px; border-radius: 12px; text-align: center;"><span style="color: #94a3b8; font-size: 14px; font-weight: bold; letter-spacing: 0.5px;">🟣 SALDO NUBANK</span><br><span style="color: #8a05be; font-size: 26px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_nu:,.2f}</span></div>""", unsafe_allow_html=True)
 with col_b2:
     st.markdown(f"""<div style="border: 1px solid #facc15; border-left: 6px solid #facc15; background-color: #0f172a; padding: 15px; border-radius: 12px; text-align: center;"><span style="color: #94a3b8; font-size: 14px; font-weight: bold; letter-spacing: 0.5px;">🟡 SALDO BANCO DO BRASIL</span><br><span style="color: #facc15; font-size: 26px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_bb:,.2f}</span></div>""", unsafe_allow_html=True)
+with col_b3:
+    st.markdown(f"""<div style="border: 1px solid #2563eb; border-left: 6px solid #2563eb; background-color: #0f172a; padding: 15px; border-radius: 12px; text-align: center;"><span style="color: #94a3b8; font-size: 14px; font-weight: bold; letter-spacing: 0.5px;">🔵 SALDO CAIXA ECONÔMICA</span><br><span style="color: #2563eb; font-size: 26px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_cx:,.2f}</span></div>""", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- REORGANIZAÇÃO COMPLETA DOS CARDS INFERIORES (MAIS ESPAÇO E SIMETRIA) ---
+# --- REORGANIZAÇÃO DOS CARDS INFERIORES COM INCLUSÃO DA SOBRA PASSADA ---
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 with col1:
     cor_saldo_texto = "#10b981" if saldo_livre >= 0 else "#ef4444"
@@ -206,9 +227,10 @@ with col1:
         <div style="border: 1px solid #10b981; border-left: 6px solid #10b981; background-color: #0f172a; padding: 15px; border-radius: 12px; min-height: 145px; display: flex; flex-direction: column; justify-content: space-between;">
             <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">💰 ENTRADAS & SALDO</span>
             <div style="margin-top: 5px;">
-                <span style="color: #10b981; font-size: 16px; font-weight: 700; display: block; margin-bottom: 4px;">💰 Receita: R$ {entradas:,.2f}</span>
-                <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 6px 0;"></div>
-                <span style="color: {cor_saldo_texto}; font-size: 16px; font-weight: 700; display: block; margin-top: 4px;">⚖️ Livre: R$ {saldo_livre:,.2f}</span>
+                <span style="color: #cbd5e1; font-size: 14px; font-weight: 600; display: block; margin-bottom: 2px;">⏱️ Sobra Passada: R$ {sobra_mes_anterior:,.2f}</span>
+                <span style="color: #10b981; font-size: 15px; font-weight: 700; display: block; margin-bottom: 4px;">💰 Receita Mês: R$ {entradas:,.2f}</span>
+                <div style="border-top: 1px dashed rgba(148, 163, 184, 0.2); margin: 4px 0;"></div>
+                <span style="color: {cor_saldo_texto}; font-size: 16px; font-weight: 700; display: block; margin-top: 2px;">⚖️ Saldo Livre: R$ {saldo_livre:,.2f}</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -263,7 +285,7 @@ with col_analise:
     else:
         st.markdown("""<div style="border: 1px solid #3b82f6; border-left: 3px solid #3b82f6; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;"><span style="font-size: 15px; color: #cbd5e1;">💡 Insira uma Entrada para ativar os gráficos.</span></div>""", unsafe_allow_html=True)
 with col_grafico:
-    if entradas > 0:
+    if (entradas + sobra_mes_anterior) > 0:
         raw_labels = ['🏠 Gastos Fixos', '🛍️ Gastos Extras', '⚖️ Saldo Livre']
         valores_pizza = [gastos_fixos + gastos_cartao, gastos_extras, max(0, saldo_livre)]
         
@@ -301,7 +323,6 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l2_b:
         tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
     with col_l2_c:
-        # Removido caixa das opções do formulário
         banco_movimentado = st.selectbox("Opção de Pagamento:", ["🟣 Nubank", "🟡 Banco do Brasil"])
     with col_l2_d:
         cartao_usado = st.selectbox("Cartão / Forma de Movimentação:", ["⚡ Pix", "📄 Boleto", "🔄 Débito Automático", "💳 Nubank", "💳 Banco do Brasil", "💳 Mercado Pago"])
@@ -353,7 +374,6 @@ if not df_mes.empty:
             "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "💳 Cartão de Crédito", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
             "Cartão": st.column_config.SelectboxColumn("Cartão / Canal", options=["⚡ Pix", "📄 Boleto", "🔄 Débito Automático", "💳 Nubank", "💳 Banco do Brasil", "💳 Mercado Pago"], required=True, width=1.5),
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1),
-            # Removido caixa da tabela do extrato
             "Banco": st.column_config.SelectboxColumn("Opção de Pagamento", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=1.5),
             "Data Registro": st.column_config.TextColumn("Data Registro", disabled=True, width=1.5)
         },
