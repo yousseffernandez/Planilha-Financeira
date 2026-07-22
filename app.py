@@ -174,13 +174,11 @@ saidas_bb_acumulado = df_historico_ate_aqui[(df_historico_ate_aqui['Tipo'] != '�
 saldo_bb = entradas_bb_acumulado - saidas_bb_acumulado
 
 # --- INTELIGÊNCIA BANCÁRIA: RESERVA DE EMERGÊNCIA ACUMULADA ---
-# Soma tudo que saiu da reserva (Entradas contendo "RESERVA")
 retiradas_reserva = df_historico_ate_aqui[
     (df_historico_ate_aqui['Tipo'] == '💰 Entrada') & 
     (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False))
 ]['Valor'].sum()
 
-# Soma tudo que foi devolvido para a reserva (Investimentos contendo "RESERVA")
 reposicoes_reserva = df_historico_ate_aqui[
     (df_historico_ate_aqui['Tipo'] == '📈 Investimentos') & 
     (df_historico_ate_aqui['Descrição'].str.contains('RESERVA', case=False, na=False))
@@ -188,14 +186,14 @@ reposicoes_reserva = df_historico_ate_aqui[
 
 deficit_reserva = retiradas_reserva - reposicoes_reserva
 
-# --- LINHA SUPERIOR: SALDOS BANCÁRIOS ---
+# --- LINHA SUPERIOR: SALDOS BANCÁRIOS (CORRIGIDO HTML <br>) ---
 st.markdown("### 🏦 Saldos Disponíveis nos Bancos")
 col_b1, col_b2 = st.columns(2)
 
 with col_b1:
     st.markdown(
         f"""<div style="border: 1px solid #8a05be; border-left: 6px solid #8a05be; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; text-align: center;">
-            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">🟣 SALDO NUBANK</span>br>
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">🟣 SALDO NUBANK</span><br>
             <span style="color: #8a05be; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_nu:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
@@ -203,7 +201,7 @@ with col_b1:
 with col_b2:
     st.markdown(
         f"""<div style="border: 1px solid #facc15; border-left: 6px solid #facc15; background-color: #0f172a; padding: 12px 15px; border-radius: 12px; text-align: center;">
-            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">🟡 SALDO BANCO DO BRASIL</span>br>
+            <span style="color: #94a3b8; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">🟡 SALDO BANCO DO BRASIL</span><br>
             <span style="color: #facc15; font-size: 22px; font-weight: 800; display: inline-block; margin-top: 5px;">R$ {saldo_bb:,.2f}</span>
         </div>""", unsafe_allow_html=True
     )
@@ -260,7 +258,7 @@ with col4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- SEÇÃO INTELIGENTE: SAÚDE FINANCEIRA MELHORADA VISUALMENTE ---
+# --- SEÇÃO INTELIGENTE: SAÚDE FINANCEIRA ---
 st.markdown("### 📊 Saúde Financeira")
 if entradas > 0:
     porcentagem_gasta = ((gastos_fixos + gastos_extras) / entradas) * 100
@@ -288,7 +286,6 @@ if entradas > 0:
             </div>""", unsafe_allow_html=True
         )
 
-        # NOVO ALERTA DA RESERVA DE EMERGÊNCIA
         if deficit_reserva > 0:
             st.markdown(
                 f"""<div style="border: 1px solid #f59e0b; border-left: 5px solid #f59e0b; background-color: #0f172a; padding: 12px 16px; border-radius: 8px;">
@@ -339,7 +336,7 @@ else:
 
 st.markdown("---")
 
-# --- FORMULÁRIO COMPACTO 3X2 ---
+# --- FORMULÁRIO COMPACTO ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
 opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"]
@@ -407,7 +404,6 @@ st.markdown(f"### 📋 Extrato Completo de {mes_selecionado}")
 if not df_mes.empty:
     df_visual = df_mes[["index_original", "Descrição", "Valor", "Tipo", "Status", "Banco", "Data Registro"]].copy()
     
-    # Ordenação alfabética
     df_visual = df_visual.sort_values(by="Descrição", key=lambda col: col.str.lower(), ascending=True)
     df_visual = df_visual.reset_index(drop=True)
     
@@ -424,7 +420,6 @@ if not df_mes.empty:
                 styles = ['background-color: #1e3a8a; color: #60a5fa; font-weight: bold;'] * len(row)
         return styles
 
-    # FORÇANDO CENTRALIZAÇÃO VISUAL GLOBAL
     st.markdown(
         """
         <style>
