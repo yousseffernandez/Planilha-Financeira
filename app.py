@@ -165,6 +165,7 @@ caixinha_total_acumulada = df_geral[
     (df_geral['Data_Ordem'] <= data_limite_atual)
 ]['Valor'].sum()
 
+# CORRIGIDO: Agora aponta exatamente para a variável "investimentos" em português
 saldo_livre = entradas - (gastos_fixos + gastos_extras + caixinha_mes_atual + investimentos)
 
 # --- SALDOS BANCÁRIOS ACUMULADOS HISTÓRICOS ---
@@ -347,7 +348,7 @@ else:
 
 st.markdown("---")
 
-# --- FORMULÁRIO COMPACTO EVOLUÍDO COM SELEÇÃO DE CARTÃO ---
+# --- FORMULÁRIO COMPACTO ---
 st.markdown(f"### ➕ Novo Lançamento em {mes_selecionado}")
 
 opcoes_selectbox = ["-- Selecione da lista --"] + itens_ja_usados + ["💰 ENTRADA (Salário/Pix)", "🚨 RETIRADA RESERVA", "🟢 REPOSIÇÃO RESERVA", "✈️ CAIXINHA VIAGEM", "📈 INVESTIMENTO"]
@@ -363,13 +364,10 @@ with st.form(key='finance_form', clear_on_submit=True):
     with col_l2_a:
         valor_texto = st.text_input("Valor do Lançamento (R$):", placeholder="0,00")
     with col_l2_b:
-        # Categorias clássicas restauradas
         tipo = st.selectbox("Tipo / Categoria:", ["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"])
     with col_l2_c:
-        # Apenas bancos com dinheiro líquido real
         banco_movimentado = st.selectbox("Banco para pagar/receber:", ["🟣 Nubank", "🟡 Banco do Brasil"])
     with col_l2_d:
-        # NOVA COLUNA EXCLUSIVA: Mapeia exatamente qual cartão foi usado na transação
         cartao_usado = st.selectbox("Cartão Utilizado:", ["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"])
         
     st.markdown("<br>", unsafe_allow_html=True)
@@ -459,7 +457,6 @@ if not df_mes.empty:
             "Descrição": st.column_config.TextColumn("Descrição", required=True, width=3),
             "Valor": st.column_config.NumberColumn("Valor (R$)", format="%.2f", min_value=0.0, required=True, width=1.5, alignment="center"),
             "Tipo": st.column_config.SelectboxColumn("Tipo", options=["🏠 Gasto Fixo", "🛍️ Gasto Extra", "💰 Entrada", "🚨 Retirada Reserva", "🟢 Reposição Reserva", "✈️ Caixinha Viagem", "📈 Investimentos"], required=True, width=1.5),
-            # Nova coluna interativa de Cartão adicionada diretamente no extrato
             "Cartão": st.column_config.SelectboxColumn("Cartão", options=["❌ Nenhum (Pix/Débito)", "🟣 Nubank", "🟡 Banco do Brasil", "🔵 Mercado Pago"], required=True, width=2),
             "Status": st.column_config.SelectboxColumn("Status", options=["✅ Pago", "⏳ Pendente"], required=True, width=1),
             "Banco": st.column_config.SelectboxColumn("Banco", options=["🟣 Nubank", "🟡 Banco do Brasil"], required=True, width=1.5),
